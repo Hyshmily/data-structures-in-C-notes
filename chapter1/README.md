@@ -131,3 +131,7 @@ int main() {
 - NP类问题：可以在多项式时间内验证答案的问题。例如给定一个解，能快速验证它是否正确。
 
 换言之，\[P \subset NP\]。参考[P versus NP Problem](https://en.wikipedia.org/wiki/P_versus_NP_problem)。
+<<<<<<< HEAD
+=======
+
+>>>>>>> 04226bf73c0a853d17540a9af264e90af9e3f4ca
