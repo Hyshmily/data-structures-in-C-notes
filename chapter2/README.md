@@ -92,3 +92,60 @@ remove_first (Node *list)
 > **header**能简化编程的本质原因是：它永远在链表的最前面，这样就没有必要再边界情况，更不需要返回新的头指针了。
 
 > 读者应该能独立完成不同风格的实现，比如：仅有head；仅有header;有head和tail等。
+
+
+2.3.2节，国外教材很少直接明确区分 *头插法* 和 *尾插法*。目前教材把它们放在很前面，会让读者误以为它们是链表的**基础**操作，实际上，它们只是一个应用而已。假设已经定义了`insert_after`函数：
+
+```c
+Link insert_after_return_new(Link p, ElemType e) {
+  Link new_node = (Link)malloc(sizeof(struct Node));
+  new_node->data = e;
+  new_node->next = p->next;
+  p->next = new_node;
+  return new_node; // 返回新插入的节点
+}
+```
+
+那么，头插法和尾插法可以分别实现为：
+
+```c
+List build_list_front(ElemType values[], size_t count) {
+  List lst = list_init();
+  for (size_t i = 0; i < count; ++i) {
+    insert_after(lst, values[i]);
+  }
+  return lst;
+}
+
+List build_list_back(ElemType values[], size_t count) {
+  List lst = list_init();
+  Link tail = lst; // tail指向最后一个节点，初始时指向header
+  for (size_t i = 0; i < count; ++i) {
+    tail = insert_after_return_new(tail, values[i]);
+  }
+  return lst;
+}
+```
+
+> 不难发现，如果要高效单次实现`insert_last`操作，就必须引入一个`tail pointer`，指向链表的最后一个节点。否则，每次插入都需要从头遍历到尾，效率非常低下。
+
+2.3.2节，尽管从API层面，链表能支持随机访问，但从性能层面，链表的随机访问效率非常低下，时间复杂度为O(n)。因此，在实际应用中，链表通常不被用来实现随机访问。换言之，教材中 `GetElem`、`LocateElem`、`ListInsert`和`ListDelete`等接口仅有**编程练习**的意义，而没有实际应用的意义。
+
+很多初学者认为双链表（doubly linked list）比单链表更难，实际不然，只要同时引入 *dummy head* (header) 和 *dummy tail* (trailer) ，双链表的实现反而更简单。因为它们消除了边界情况的处理。
+
+```c
+typedef int ElemType;
+
+typedef struct Node {
+  ElemType data;
+  struct Node *prev;
+  struct Node *next;
+} Node;
+
+typedef Node *Link;
+
+typedef struct DoublyLinkedList {
+  Link header;  // dummy head
+  Link trailer; // dummy tail
+} DoublyLinkedList;
+```
