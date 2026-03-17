@@ -53,6 +53,10 @@ void insertElement(List *list, size_t index, ElemType value) {
 
 ## 2.3
 
+> [!WARNING]
+> 在经典教材（如《Algorithms》、《Introduction to Algorithms》）中，对链表的实现细节并没有过多强调。原因有很多：1）在应用层面，链表的价值很低，直接使用C++的`vector`、Java的`ArrayList`或Python的`list`等动态数组足够了；2）链表多见于Linux Kernel等底层系统编程中，普通读者很难接触到。当然，读者可以把它当成一个思维训练的工具，来练习指针操作和内存管理。
+
+
 2.3.1提到“指针域”的概念。这是国内技术翻译糟糕的一个缩影。英文原文是`pointer field`，指的是结构体中的一个成员变量，它的类型是指针。翻译成“指针域”非常不直观，容易让人误解为“指针的范围”或者“指针的作用域”。更合理的翻译应该是“指针成员”。总而言之，field的正确翻译应该是“成员”、“字段”，而不是“域”；结合上下文，有时理解成“属性”也可以。
 
 教材严格区分`head pointer`和`first pointer`，这在国外教材更常见的说法是：**header**表示这个特殊的结点（dummy node 或 sentinel node），而**head/first**表示指向第一个结点的指针。为了保持和经典教材一致，这里也采用了这种区分的方式。
@@ -89,7 +93,30 @@ remove_first (Node *list)
 }
 ```
 
-> **header**能简化编程的本质原因是：它永远在链表的最前面，这样就没有必要再边界情况，更不需要返回新的头指针了。
+上面风格的代码，调用者必须要正确使用返回值。另外一种风格是：
+
+```c
+void add_first(Node **list, ElemType e)
+{
+    Node *new_node = malloc(sizeof(Node));
+    new_node->data = e;
+    new_node->next = *list;
+    *list = new_node;
+}
+
+void remove_first(Node **list)
+{
+    if (*list == NULL)
+        return;
+
+    Node *temp = *list;
+    *list = (*list)->next;
+    free(temp);
+}
+```
+
+
+> **header**能简化编程的本质原因是：它永远在链表的最前面，这样就没有必要再边界情况，更不需要返回新的头指针了，也可以不使用**指针的指针**。
 
 > 读者应该能独立完成不同风格的实现，比如：仅有head；仅有header;有head和tail等。
 
