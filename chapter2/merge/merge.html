@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merge 归并操作演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d2ff;
+            font-size: 1.5em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+            color: white;
+        }
+
+        .btn-step {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .visualization {
+            min-height: 300px;
+            position: relative;
+        }
+
+        /* Array styles */
+        .array-container {
+            margin: 20px 0;
+        }
+
+        .array-label {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+
+        .array {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .cell-la {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .cell-lb {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+
+        .cell-lc {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .cell.empty {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .cell.highlight {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .cell.moving {
+            animation: moveToResult 0.5s ease;
+        }
+
+        @keyframes moveToResult {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        .pointer {
+            position: absolute;
+            bottom: -25px;
+            font-size: 14px;
+            color: #00d2ff;
+            font-weight: bold;
+        }
+
+        .index-label {
+            position: absolute;
+            top: -20px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* Linked list styles */
+        .list-container {
+            margin: 20px 0;
+        }
+
+        .list {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0;
+        }
+
+        .node {
+            display: flex;
+            align-items: center;
+        }
+
+        .node-box {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .node-box.dummy {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+
+        .node-box.la {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .node-box.lb {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+
+        .node-box.lc {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .node-box.merged {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .node-box.highlight {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .arrow {
+            width: 30px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+            position: relative;
+        }
+
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            font-size: 16px;
+            min-height: 50px;
+        }
+
+        .status .highlight-text {
+            color: #00d2ff;
+            font-weight: bold;
+        }
+
+        .code-panel {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .code-line {
+            white-space: pre;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .code-line.active {
+            background: rgba(0, 210, 255, 0.3);
+        }
+
+        .pointer-indicator {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid #00d2ff;
+        }
+
+        .pointer-la { border-top-color: #667eea; }
+        .pointer-lb { border-top-color: #f5576c; }
+        .pointer-lc { border-top-color: #38ef7d; }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Merge 归并操作演示</h1>
+
+    <div class="container">
+        <!-- Array-based Merge -->
+        <div class="section">
+            <h2>🅰️ 基于数组的 Merge</h2>
+
+            <div class="controls">
+                <button class="btn-start" onclick="arrayAutoRun()">▶ 自动演示</button>
+                <button class="btn-step" onclick="arrayStep()">⏭ 单步执行</button>
+                <button class="btn-reset" onclick="arrayReset()">🔄 重置</button>
+            </div>
+
+            <div class="visualization" id="array-vis">
+                <div class="array-container">
+                    <div class="array-label">LA (有序数组):</div>
+                    <div class="array" id="array-la"></div>
+                </div>
+
+                <div class="array-container">
+                    <div class="array-label">LB (有序数组):</div>
+                    <div class="array" id="array-lb"></div>
+                </div>
+
+                <div class="array-container">
+                    <div class="array-label">LC (合并结果):</div>
+                    <div class="array" id="array-lc"></div>
+                </div>
+            </div>
+
+            <div class="status" id="array-status">
+                点击 <span class="highlight-text">自动演示</span> 或 <span class="highlight-text">单步执行</span> 开始
+            </div>
+
+            <div class="code-panel">
+                <div class="code-line" id="arr-code-0">void Merge(int LA[], int LB[], int LC[], int m, int n) {</div>
+                <div class="code-line" id="arr-code-1">    int i = 0, j = 0, k = 0;</div>
+                <div class="code-line" id="arr-code-2">    while (i < m && j < n) {</div>
+                <div class="code-line" id="arr-code-3">        if (LA[i] <= LB[j])</div>
+                <div class="code-line" id="arr-code-4">            LC[k++] = LA[i++];</div>
+                <div class="code-line" id="arr-code-5">        else</div>
+                <div class="code-line" id="arr-code-6">            LC[k++] = LB[j++];</div>
+                <div class="code-line" id="arr-code-7">    }</div>
+                <div class="code-line" id="arr-code-8">    while (i < m) LC[k++] = LA[i++];</div>
+                <div class="code-line" id="arr-code-9">    while (j < n) LC[k++] = LB[j++];</div>
+                <div class="code-line" id="arr-code-10">}</div>
+            </div>
+        </div>
+
+        <!-- Linked-list-based Merge -->
+        <div class="section">
+            <h2>🔗 基于链表的 Merge (带 dummy node)</h2>
+
+            <div class="controls">
+                <button class="btn-start" onclick="listAutoRun()">▶ 自动演示</button>
+                <button class="btn-step" onclick="listStep()">⏭ 单步执行</button>
+                <button class="btn-reset" onclick="listReset()">🔄 重置</button>
+            </div>
+
+            <div class="visualization" id="list-vis">
+                <div class="list-container">
+                    <div class="array-label">LA (有序链表):</div>
+                    <div class="list" id="list-la"></div>
+                </div>
+
+                <div class="list-container">
+                    <div class="array-label">LB (有序链表):</div>
+                    <div class="list" id="list-lb"></div>
+                </div>
+
+                <div class="list-container">
+                    <div class="array-label">LC (合并结果 - dummy head):</div>
+                    <div class="list" id="list-lc"></div>
+                </div>
+            </div>
+
+            <div class="status" id="list-status">
+                点击 <span class="highlight-text">自动演示</span> 或 <span class="highlight-text">单步执行</span> 开始
+            </div>
+
+            <div class="code-panel">
+                <div class="code-line" id="list-code-0">Node* Merge(Node* LA, Node* LB) { // LA, LB 带 dummy head</div>
+                <div class="code-line" id="list-code-1">    Node* LC = (Node*)malloc(sizeof(Node)); // dummy head</div>
+                <div class="code-line" id="list-code-2">    Node* tail = LC;</div>
+                <div class="code-line" id="list-code-3">    LA = LA->next; LB = LB->next; // 跳过 dummy head</div>
+                <div class="code-line" id="list-code-4">    </div>
+                <div class="code-line" id="list-code-5">    while (LA && LB) {</div>
+                <div class="code-line" id="list-code-6">        if (LA->data <= LB->data) {</div>
+                <div class="code-line" id="list-code-7">            tail->next = LA;</div>
+                <div class="code-line" id="list-code-8">            LA = LA->next;</div>
+                <div class="code-line" id="list-code-9">        } else {</div>
+                <div class="code-line" id="list-code-10">            tail->next = LB;</div>
+                <div class="code-line" id="list-code-11">            LB = LB->next;</div>
+                <div class="code-line" id="list-code-12">        }</div>
+                <div class="code-line" id="list-code-13">        tail = tail->next;</div>
+                <div class="code-line" id="list-code-14">    }</div>
+                <div class="code-line" id="list-code-15">    tail->next = LA ? LA : LB;</div>
+                <div class="code-line" id="list-code-16">    return LC;</div>
+                <div class="code-line" id="list-code-17">}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Array-based Merge ====================
+        const LA = [1, 3, 5];
+        const LB = [2, 4, 8, 10];
+        let LC = [];
+        let arrayState = { i: 0, j: 0, k: 0, phase: 'init', running: false };
+
+        function renderArray() {
+            // Render LA
+            const laDiv = document.getElementById('array-la');
+            laDiv.innerHTML = '';
+            LA.forEach((val, idx) => {
+                const cell = document.createElement('div');
+                cell.className = 'cell cell-la';
+                if (idx === arrayState.i && arrayState.phase !== 'done') {
+                    cell.classList.add('highlight');
+                    const pointer = document.createElement('div');
+                    pointer.className = 'pointer';
+                    pointer.textContent = 'i';
+                    cell.appendChild(pointer);
+                }
+                if (idx < arrayState.i) {
+                    cell.style.opacity = '0.3';
+                }
+                const idxLabel = document.createElement('div');
+                idxLabel.className = 'index-label';
+                idxLabel.textContent = idx;
+                cell.appendChild(idxLabel);
+                cell.innerHTML = val + cell.innerHTML;
+                laDiv.appendChild(cell);
+            });
+
+            // Render LB
+            const lbDiv = document.getElementById('array-lb');
+            lbDiv.innerHTML = '';
+            LB.forEach((val, idx) => {
+                const cell = document.createElement('div');
+                cell.className = 'cell cell-lb';
+                if (idx === arrayState.j && arrayState.phase !== 'done') {
+                    cell.classList.add('highlight');
+                    const pointer = document.createElement('div');
+                    pointer.className = 'pointer';
+                    pointer.textContent = 'j';
+                    cell.appendChild(pointer);
+                }
+                if (idx < arrayState.j) {
+                    cell.style.opacity = '0.3';
+                }
+                const idxLabel = document.createElement('div');
+                idxLabel.className = 'index-label';
+                idxLabel.textContent = idx;
+                cell.appendChild(idxLabel);
+                cell.innerHTML = val + cell.innerHTML;
+                lbDiv.appendChild(cell);
+            });
+
+            // Render LC
+            const lcDiv = document.getElementById('array-lc');
+            lcDiv.innerHTML = '';
+            LC.forEach((val, idx) => {
+                const cell = document.createElement('div');
+                cell.className = 'cell cell-lc';
+                if (idx === arrayState.k - 1) {
+                    cell.classList.add('moving');
+                }
+                const idxLabel = document.createElement('div');
+                idxLabel.className = 'index-label';
+                idxLabel.textContent = idx;
+                cell.appendChild(idxLabel);
+                cell.textContent = val;
+                lcDiv.appendChild(cell);
+            });
+            // Empty slots
+            for (let i = LC.length; i < LA.length + LB.length; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell empty';
+                const idxLabel = document.createElement('div');
+                idxLabel.className = 'index-label';
+                idxLabel.textContent = i;
+                cell.appendChild(idxLabel);
+                lcDiv.appendChild(cell);
+            }
+        }
+
+        function highlightCode(prefix, lineNum) {
+            for (let i = 0; i <= 20; i++) {
+                const elem = document.getElementById(`${prefix}-code-${i}`);
+                if (elem) elem.classList.remove('active');
+            }
+            if (lineNum >= 0) {
+                const elem = document.getElementById(`${prefix}-code-${lineNum}`);
+                if (elem) elem.classList.add('active');
+            }
+        }
+
+        function updateArrayStatus(msg) {
+            document.getElementById('array-status').innerHTML = msg;
+        }
+
+        function arrayStep() {
+            const { i, j, k, phase } = arrayState;
+
+            if (phase === 'done') {
+                updateArrayStatus('<span class="highlight-text">✓ 合并完成!</span>');
+                return false;
+            }
+
+            if (phase === 'init') {
+                arrayState.phase = 'merge';
+                highlightCode('arr', 1);
+                updateArrayStatus(`初始化: i=0, j=0, k=0`);
+                return true;
+            }
+
+            // Main merge loop
+            if (i < LA.length && j < LB.length) {
+                highlightCode('arr', 2);
+                if (LA[i] <= LB[j]) {
+                    highlightCode('arr', 3);
+                    setTimeout(() => highlightCode('arr', 4), 300);
+                    LC.push(LA[i]);
+                    updateArrayStatus(`<span class="highlight-text">LA[${i}]=${LA[i]} <= LB[${j}]=${LB[j]}</span><br>LC[${k}] = ${LA[i]}`);
+                    arrayState.i++;
+                    arrayState.k++;
+                } else {
+                    highlightCode('arr', 5);
+                    setTimeout(() => highlightCode('arr', 6), 300);
+                    LC.push(LB[j]);
+                    updateArrayStatus(`<span class="highlight-text">LA[${i}]=${LA[i]} > LB[${j}]=${LB[j]}</span><br>LC[${k}] = ${LB[j]}`);
+                    arrayState.j++;
+                    arrayState.k++;
+                }
+            } else if (i < LA.length) {
+                // Copy remaining from LA
+                highlightCode('arr', 8);
+                LC.push(LA[i]);
+                updateArrayStatus(`LB已空, 复制剩余LA<br>LC[${k}] = ${LA[i]}`);
+                arrayState.i++;
+                arrayState.k++;
+            } else if (j < LB.length) {
+                // Copy remaining from LB
+                highlightCode('arr', 9);
+                LC.push(LB[j]);
+                updateArrayStatus(`LA已空, 复制剩余LB<br>LC[${k}] = ${LB[j]}`);
+                arrayState.j++;
+                arrayState.k++;
+            } else {
+                arrayState.phase = 'done';
+                highlightCode('arr', 10);
+                updateArrayStatus('<span class="highlight-text">✓ 合并完成!</span>');
+                return false;
+            }
+
+            renderArray();
+            return true;
+        }
+
+        async function arrayAutoRun() {
+            if (arrayState.running) return;
+            arrayState.running = true;
+
+            while (arrayStep() && arrayState.running) {
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            arrayState.running = false;
+        }
+
+        function arrayReset() {
+            arrayState = { i: 0, j: 0, k: 0, phase: 'init', running: false };
+            LC = [];
+            renderArray();
+            highlightCode('arr', -1);
+            updateArrayStatus('点击 <span class="highlight-text">自动演示</span> 或 <span class="highlight-text">单步执行</span> 开始');
+        }
+
+        // ==================== Linked-list-based Merge ====================
+        class ListNode {
+            constructor(data) {
+                this.data = data;
+                this.next = null;
+            }
+        }
+
+        function createListWithDummy(arr) {
+            const dummy = new ListNode(null); // dummy head
+            let curr = dummy;
+            for (let i = 0; i < arr.length; i++) {
+                curr.next = new ListNode(arr[i]);
+                curr = curr.next;
+            }
+            return dummy;
+        }
+
+        let listLA = createListWithDummy([1, 3, 5]);
+        let listLB = createListWithDummy([2, 4, 8, 10]);
+        let listLC = { dummy: new ListNode(null), tail: null };
+        let listState = {
+            la: listLA,
+            laCurr: null, // 当前处理的节点（跳过dummy后）
+            lb: listLB,
+            lbCurr: null,
+            phase: 'init',
+            running: false,
+            mergedNodes: []
+        };
+
+        function renderList() {
+            // Render LA (with dummy head)
+            const laDiv = document.getElementById('list-la');
+            laDiv.innerHTML = '';
+
+            // Dummy node for LA
+            const laDummy = document.createElement('div');
+            laDummy.className = 'node';
+            const laDummyBox = document.createElement('div');
+            laDummyBox.className = 'node-box dummy';
+            laDummyBox.textContent = 'LA';
+            laDummy.appendChild(laDummyBox);
+            const laArrow = document.createElement('div');
+            laArrow.className = 'arrow';
+            laDummy.appendChild(laArrow);
+            laDiv.appendChild(laDummy);
+
+            let curr = listState.la ? listState.la.next : null;
+            while (curr) {
+                const node = document.createElement('div');
+                node.className = 'node';
+
+                const box = document.createElement('div');
+                box.className = 'node-box la';
+                if (curr === listState.laCurr && listState.phase !== 'done') {
+                    box.classList.add('highlight');
+                    const pointer = document.createElement('div');
+                    pointer.className = 'pointer-indicator pointer-la';
+                    box.appendChild(pointer);
+                }
+                box.textContent = curr.data;
+                node.appendChild(box);
+
+                if (curr.next) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'arrow';
+                    node.appendChild(arrow);
+                }
+                laDiv.appendChild(node);
+                curr = curr.next;
+            }
+            if (!listState.la || !listState.la.next) {
+                const nullNode = document.createElement('div');
+                nullNode.style.color = '#888';
+                nullNode.textContent = 'NULL';
+                laDiv.appendChild(nullNode);
+            }
+
+            // Render LB (with dummy head)
+            const lbDiv = document.getElementById('list-lb');
+            lbDiv.innerHTML = '';
+
+            // Dummy node for LB
+            const lbDummy = document.createElement('div');
+            lbDummy.className = 'node';
+            const lbDummyBox = document.createElement('div');
+            lbDummyBox.className = 'node-box dummy';
+            lbDummyBox.textContent = 'LB';
+            lbDummy.appendChild(lbDummyBox);
+            const lbArrow = document.createElement('div');
+            lbArrow.className = 'arrow';
+            lbDummy.appendChild(lbArrow);
+            lbDiv.appendChild(lbDummy);
+
+            curr = listState.lb ? listState.lb.next : null;
+            while (curr) {
+                const node = document.createElement('div');
+                node.className = 'node';
+
+                const box = document.createElement('div');
+                box.className = 'node-box lb';
+                if (curr === listState.lbCurr && listState.phase !== 'done') {
+                    box.classList.add('highlight');
+                    const pointer = document.createElement('div');
+                    pointer.className = 'pointer-indicator pointer-lb';
+                    box.appendChild(pointer);
+                }
+                box.textContent = curr.data;
+                node.appendChild(box);
+
+                if (curr.next) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'arrow';
+                    node.appendChild(arrow);
+                }
+                lbDiv.appendChild(node);
+                curr = curr.next;
+            }
+            if (!listState.lb || !listState.lb.next) {
+                const nullNode = document.createElement('div');
+                nullNode.style.color = '#888';
+                nullNode.textContent = 'NULL';
+                lbDiv.appendChild(nullNode);
+            }
+
+            // Render LC (with dummy)
+            const lcDiv = document.getElementById('list-lc');
+            lcDiv.innerHTML = '';
+
+            // Dummy node (LC head)
+            const dummyNode = document.createElement('div');
+            dummyNode.className = 'node';
+            const dummyBox = document.createElement('div');
+            dummyBox.className = 'node-box dummy';
+            dummyBox.textContent = 'LC';
+            dummyNode.appendChild(dummyBox);
+            const arrow1 = document.createElement('div');
+            arrow1.className = 'arrow';
+            dummyNode.appendChild(arrow1);
+            lcDiv.appendChild(dummyNode);
+
+            // Merged nodes
+            listState.mergedNodes.forEach((val, i) => {
+                const node = document.createElement('div');
+                node.className = 'node';
+
+                const box = document.createElement('div');
+                box.className = 'node-box lc';
+                if (i === listState.mergedNodes.length - 1 && listState.phase !== 'done') {
+                    const pointer = document.createElement('div');
+                    pointer.className = 'pointer-indicator pointer-lc';
+                    box.appendChild(pointer);
+                }
+                box.textContent = val;
+                node.appendChild(box);
+
+                const arrow = document.createElement('div');
+                arrow.className = 'arrow';
+                node.appendChild(arrow);
+                lcDiv.appendChild(node);
+            });
+
+            // NULL terminator
+            if (listState.phase === 'done' || listState.mergedNodes.length === LA.length + LB.length) {
+                const nullNode = document.createElement('div');
+                nullNode.style.color = '#888';
+                nullNode.textContent = 'NULL';
+                lcDiv.appendChild(nullNode);
+            }
+        }
+
+        function updateListStatus(msg) {
+            document.getElementById('list-status').innerHTML = msg;
+        }
+
+        function listStep() {
+            if (listState.phase === 'done') {
+                updateListStatus('<span class="highlight-text">✓ 合并完成! 返回 LC</span>');
+                return false;
+            }
+
+            if (listState.phase === 'init') {
+                listState.phase = 'merge';
+                listLC.tail = listLC.dummy;
+                listState.laCurr = listState.la.next;
+                listState.lbCurr = listState.lb.next;
+                highlightCode('list', 1);
+                setTimeout(() => highlightCode('list', 2), 200);
+                setTimeout(() => highlightCode('list', 3), 400);
+                updateListStatus(`创建 LC (dummy head)<br>tail 指向 LC<br>LA, LB 跳过 dummy head`);
+                renderList();
+                return true;
+            }
+
+            // Main merge
+            if (listState.laCurr && listState.lbCurr) {
+                highlightCode('list', 5);
+                const laVal = listState.laCurr.data;
+                const lbVal = listState.lbCurr.data;
+
+                if (laVal <= lbVal) {
+                    highlightCode('list', 6);
+                    setTimeout(() => highlightCode('list', 7), 200);
+                    setTimeout(() => highlightCode('list', 8), 400);
+
+                    updateListStatus(`<span class="highlight-text">LA->data=${laVal} <= LB->data=${lbVal}</span><br>tail->next = LA; LA = LA->next`);
+                    listState.mergedNodes.push(laVal);
+                    listState.laCurr = listState.laCurr.next;
+                } else {
+                    highlightCode('list', 9);
+                    setTimeout(() => highlightCode('list', 10), 200);
+                    setTimeout(() => highlightCode('list', 11), 400);
+
+                    updateListStatus(`<span class="highlight-text">LA->data=${laVal} > LB->data=${lbVal}</span><br>tail->next = LB; LB = LB->next`);
+                    listState.mergedNodes.push(lbVal);
+                    listState.lbCurr = listState.lbCurr.next;
+                }
+                setTimeout(() => highlightCode('list', 13), 600);
+            } else if (listState.laCurr || listState.lbCurr) {
+                // One list exhausted
+                highlightCode('list', 15);
+                const remaining = listState.laCurr || listState.lbCurr;
+                updateListStatus(`一条链表已空<br>tail->next = ${listState.laCurr ? 'LA' : 'LB'} (连接剩余节点)`);
+                // Add remaining nodes
+                let curr = remaining;
+                while (curr) {
+                    listState.mergedNodes.push(curr.data);
+                    curr = curr.next;
+                }
+                listState.phase = 'done';
+                renderList();
+                highlightCode('list', 16);
+                updateListStatus('<span class="highlight-text">✓ 合并完成! 返回 LC</span>');
+                return false;
+            } else {
+                listState.phase = 'done';
+                highlightCode('list', 16);
+                updateListStatus('<span class="highlight-text">✓ 合并完成! 返回 LC</span>');
+                return false;
+            }
+
+            renderList();
+            return true;
+        }
+
+        async function listAutoRun() {
+            if (listState.running) return;
+            listState.running = true;
+
+            while (listStep() && listState.running) {
+                await new Promise(r => setTimeout(r, 1200));
+            }
+
+            listState.running = false;
+        }
+
+        function listReset() {
+            listState = {
+                la: createListWithDummy([1, 3, 5]),
+                laCurr: null,
+                lb: createListWithDummy([2, 4, 8, 10]),
+                lbCurr: null,
+                phase: 'init',
+                running: false,
+                mergedNodes: []
+            };
+            listLC = { dummy: new ListNode(null), tail: null };
+            renderList();
+            highlightCode('list', -1);
+            updateListStatus('点击 <span class="highlight-text">自动演示</span> 或 <span class="highlight-text">单步执行</span> 开始');
+        }
+
+        // Initialize
+        arrayReset();
+        listReset();
+    </script>
+</body>
+</html>
