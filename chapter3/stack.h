@@ -6,7 +6,7 @@ struct Stack;
 
 typedef struct Stack Stack;
 
-typedef int ElemType;
+typedef double ElemType;
 
 Stack *stack_init();
 

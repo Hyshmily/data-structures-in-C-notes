@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack 迷宫求解</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 6px; color: #f8fafc; }
+  .subtitle { color: #94a3b8; font-size: 0.85rem; margin-bottom: 16px; }
+  .container { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .maze-panel, .side-panel {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  }
+  canvas { display: block; border-radius: 4px; cursor: pointer; }
+  .legend { display: flex; gap: 14px; margin-top: 10px; font-size: 0.78rem; color: #94a3b8; flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .side-panel { min-width: 220px; max-width: 260px; }
+  .side-panel h2 { font-size: 0.95rem; margin-bottom: 8px; color: #38bdf8; }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  button {
+    padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 0.82rem; font-weight: 600; transition: .15s;
+  }
+  button:disabled { opacity: .4; cursor: default; }
+  #btnStart { background: #22c55e; color: #052e16; }
+  #btnStart:hover:not(:disabled) { background: #16a34a; }
+  #btnPause { background: #eab308; color: #422006; }
+  #btnPause:hover:not(:disabled) { background: #ca8a04; }
+  #btnStep { background: #3b82f6; color: #eff6ff; }
+  #btnStep:hover:not(:disabled) { background: #2563eb; }
+  #btnReset { background: #64748b; color: #f8fafc; }
+  #btnReset:hover:not(:disabled) { background: #475569; }
+  #btnGenerate { background: #8b5cf6; color: #f5f3ff; }
+  #btnGenerate:hover:not(:disabled) { background: #7c3aed; }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: .8rem; }
+  .slider-row input[type=range] { flex: 1; accent-color: #38bdf8; }
+  .stack-vis { margin-bottom: 12px; }
+  .stack-vis .label { font-size: .78rem; color: #94a3b8; margin-bottom: 4px; }
+  .stack-container {
+    background: #0f172a; border-radius: 6px; padding: 6px;
+    max-height: 300px; overflow-y: auto; min-height: 60px;
+  }
+  .stack-container::-webkit-scrollbar { width: 4px; }
+  .stack-container::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+  .stack-item {
+    padding: 3px 8px; margin: 2px 0; border-radius: 4px;
+    font-family: monospace; font-size: .78rem; text-align: center;
+    transition: .2s;
+  }
+  .stack-item.top { background: #22d3ee; color: #0c4a6e; font-weight: 700; }
+  .stack-item.inner { background: #334155; color: #cbd5e1; }
+  .stack-empty { color: #475569; font-size: .78rem; text-align: center; padding: 12px; }
+  .stats { font-size: .8rem; color: #94a3b8; }
+  .stats div { margin-bottom: 3px; }
+  .stats span { color: #f8fafc; font-weight: 600; }
+  .status {
+    margin-top: 10px; padding: 6px 10px; border-radius: 6px; font-size: .82rem;
+    text-align: center; font-weight: 600;
+  }
+  .status.idle { background: #1e293b; color: #94a3b8; }
+  .status.running { background: #052e16; color: #4ade80; }
+  .status.found { background: #1e3a5f; color: #38bdf8; }
+  .status.failed { background: #3b1123; color: #fb7185; }
+  .status.paused { background: #422006; color: #fbbf24; }
+  .note { font-size: .72rem; color: #64748b; margin-top: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>Stack-based Maze Solver</h1>
+<p class="subtitle">DFS + Stack | 点击格子切换墙壁 | 自动生成迷宫</p>
+
+<div class="container">
+  <div class="maze-panel">
+    <canvas id="mazeCanvas" width="480" height="480"></canvas>
+    <div class="legend">
+      <span><i style="background:#1e293b;border:1px solid #334155"></i>通道</span>
+      <span><i style="background:#64748b"></i>墙壁</span>
+      <span><i style="background:#0891b2"></i>当前路径</span>
+      <span><i style="background:#fbbf24"></i>当前位置</span>
+      <span><i style="background:#134e4a"></i>已回溯</span>
+      <span><i style="background:#22c55e"></i>最终路径</span>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <h2>Controls</h2>
+    <div class="controls">
+      <button id="btnGenerate">生成迷宫</button>
+      <button id="btnStart">开始</button>
+      <button id="btnPause" disabled>暂停</button>
+      <button id="btnStep">单步</button>
+      <button id="btnReset">重置</button>
+    </div>
+    <div class="slider-row">
+      <span>速度</span>
+      <input type="range" id="speed" min="1" max="100" value="60">
+      <span id="speedVal">60</span>
+    </div>
+    <div class="slider-row">
+      <span>大小</span>
+      <input type="range" id="sizeSlider" min="5" max="25" value="15" step="2">
+      <span id="sizeVal">15</span>
+    </div>
+
+    <h2 style="margin-top:4px">Stack</h2>
+    <div class="stack-vis">
+      <div class="label">栈顶 →</div>
+      <div class="stack-container" id="stackDisplay">
+        <div class="stack-empty">Stack is empty</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div>已探索: <span id="statExplored">0</span></div>
+      <div>回溯次数: <span id="statBacktrack">0</span></div>
+      <div>栈深度: <span id="statStack">0</span></div>
+      <div>步数: <span id="statSteps">0</span></div>
+    </div>
+
+    <div class="status idle" id="statusBar">就绪 — 点击「生成迷宫」或手动编辑</div>
+    <div class="note">
+      算法：将起点压栈，每步看栈顶格子，
+      有未探索的邻居则压栈前进，无则弹栈回溯。
+      栈中始终保存起点到当前位置的路径。
+    </div>
+  </div>
+</div>
+
+<script>
+const WALL = 1, PATH = 0, VISITED = 2, SOLUTION = 3;
+const DIR = [[0,1],[1,0],[0,-1],[-1,0]];
+
+let N = 15;
+let grid = [];
+let startR, startC, endR, endC;
+let stack = [];
+let curR = -1, curC = -1;
+let running = false, paused = false, found = false, finished = false;
+let animId = null;
+let explored = 0, backtracks = 0, steps = 0;
+let visited = [];
+
+const canvas = document.getElementById('mazeCanvas');
+const ctx = canvas.getContext('2d');
+const stackDisplay = document.getElementById('stackDisplay');
+const statusBar = document.getElementById('statusBar');
+const speedSlider = document.getElementById('speed');
+const speedVal = document.getElementById('speedVal');
+const sizeSlider = document.getElementById('sizeSlider');
+const sizeVal = document.getElementById('sizeVal');
+const btnStart = document.getElementById('btnStart');
+const btnPause = document.getElementById('btnPause');
+const btnStep = document.getElementById('btnStep');
+const btnReset = document.getElementById('btnReset');
+const btnGenerate = document.getElementById('btnGenerate');
+
+let cellSize;
+
+function initGrid() {
+  grid = [];
+  visited = [];
+  for (let r = 0; r < N; r++) {
+    grid[r] = [];
+    visited[r] = [];
+    for (let c = 0; c < N; c++) {
+      grid[r][c] = WALL;
+      visited[r][c] = false;
+    }
+  }
+}
+
+function generateMaze() {
+  stopAnim();
+  N = parseInt(sizeSlider.value);
+  cellSize = Math.floor(480 / N);
+  canvas.width = cellSize * N;
+  canvas.height = cellSize * N;
+  initGrid();
+
+  // Recursive backtracker maze generation
+  // Use odd cells as passages
+  function carve(r, c) {
+    grid[r][c] = PATH;
+    const dirs = [[0,2],[2,0],[0,-2],[-2,0]].sort(() => Math.random() - 0.5);
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 1 && nr < N-1 && nc >= 1 && nc < N-1 && grid[nr][nc] === WALL) {
+        grid[r + dr/2][c + dc/2] = PATH;
+        carve(nr, nc);
+      }
+    }
+  }
+  carve(1, 1);
+
+  startR = 1; startC = 1;
+  endR = N - 2; endC = N - 2;
+  grid[endR][endC] = PATH;
+
+  resetState();
+  draw();
+}
+
+function resetState() {
+  stack = [];
+  curR = -1; curC = -1;
+  running = false; paused = false; found = false; finished = false;
+  explored = 0; backtracks = 0; steps = 0;
+  // clear visited overlay
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      visited[r][c] = false;
+  updateUI();
+  setStatus('idle', '就绪 — 点击「开始」');
+  btnStart.disabled = false;
+  btnPause.disabled = true;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const x = c * cellSize, y = r * cellSize;
+      if (grid[r][c] === WALL) {
+        ctx.fillStyle = '#475569';
+      } else if (visited[r][c]) {
+        ctx.fillStyle = '#134e4a';
+      } else {
+        ctx.fillStyle = '#1e293b';
+      }
+      ctx.fillRect(x, y, cellSize, cellSize);
+      // grid line
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellSize, cellSize);
+    }
+  }
+  // Draw active path (cells in stack)
+  if (!found && stack.length > 0) {
+    for (let i = 0; i < stack.length - 1; i++) {
+      const [sr, sc] = stack[i];
+      const x = sc * cellSize, y = sr * cellSize;
+      ctx.fillStyle = '#0891b2';
+      ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+    }
+  }
+  // Draw solution path
+  if (found) {
+    for (const [sr, sc] of stack) {
+      const x = sc * cellSize, y = sr * cellSize;
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+    }
+  }
+  // Draw current position (top of stack)
+  if (curR >= 0 && !found) {
+    const x = curC * cellSize, y = curR * cellSize;
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+  }
+  // Coordinates on each cell
+  const coordSize = Math.max(7, cellSize * 0.28);
+  ctx.font = `${coordSize}px monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const x = c * cellSize, y = r * cellSize;
+      ctx.fillStyle = grid[r][c] === WALL ? '#94a3b880' : '#94a3b860';
+      ctx.fillText(`${r},${c}`, x + cellSize / 2, y + cellSize - 1);
+    }
+  }
+  // Start / End labels
+  ctx.font = `bold ${Math.max(12, cellSize * 0.45)}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText('S', startC * cellSize + cellSize/2, startR * cellSize + 1);
+  ctx.fillText('E', endC * cellSize + cellSize/2, endR * cellSize + 1);
+}
+
+function updateStackDisplay() {
+  if (stack.length === 0) {
+    stackDisplay.innerHTML = '<div class="stack-empty">Stack is empty</div>';
+  } else {
+    let html = '';
+    for (let i = stack.length - 1; i >= 0; i--) {
+      const [r, c] = stack[i];
+      const cls = i === stack.length - 1 ? 'top' : 'inner';
+      html += `<div class="stack-item ${cls}">(${r}, ${c})</div>`;
+    }
+    stackDisplay.innerHTML = html;
+  }
+  document.getElementById('statExplored').textContent = explored;
+  document.getElementById('statBacktrack').textContent = backtracks;
+  document.getElementById('statStack').textContent = stack.length;
+  document.getElementById('statSteps').textContent = steps;
+}
+
+function updateUI() {
+  updateStackDisplay();
+  draw();
+}
+
+function setStatus(cls, text) {
+  statusBar.className = 'status ' + cls;
+  statusBar.textContent = text;
+}
+
+function delay() {
+  const sp = parseInt(speedSlider.value);
+  return Math.max(5, 500 - sp * 5);
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function solveStep() {
+  if (stack.length === 0) {
+    curR = -1; curC = -1;
+    finished = true;
+    setStatus('failed', '无路可走！迷宫无解。');
+    running = false;
+    btnStart.disabled = false;
+    btnPause.disabled = true;
+    updateUI();
+    return false;
+  }
+
+  // Peek at top of stack
+  const [r, c] = stack[stack.length - 1];
+  steps++;
+
+  if (r === endR && c === endC) {
+    found = true;
+    curR = r; curC = c;
+    setStatus('found', `找到路径！长度 ${stack.length}，探索 ${explored} 格`);
+    running = false;
+    btnStart.disabled = false;
+    btnPause.disabled = true;
+    updateUI();
+    return false;
+  }
+
+  // Find first unvisited neighbor
+  let neighbor = null;
+  for (const [dr, dc] of DIR) {
+    const nr = r + dr, nc = c + dc;
+    if (nr >= 0 && nr < N && nc >= 0 && nc < N && grid[nr][nc] !== WALL && !visited[nr][nc]) {
+      neighbor = [nr, nc];
+      break;
+    }
+  }
+
+  if (neighbor) {
+    // Push neighbor onto stack (advance)
+    const [nr, nc] = neighbor;
+    visited[nr][nc] = true;
+    explored++;
+    stack.push([nr, nc]);
+    curR = nr; curC = nc;
+  } else {
+    // Dead end — pop (backtrack)
+    stack.pop();
+    backtracks++;
+    // curR/curC follows new stack top
+    if (stack.length > 0) {
+      [curR, curC] = stack[stack.length - 1];
+    } else {
+      curR = -1; curC = -1;
+    }
+  }
+
+  updateUI();
+  return true;
+}
+
+async function solve() {
+  if (found || finished) return;
+  running = true;
+  paused = false;
+  btnStart.disabled = true;
+  btnPause.disabled = false;
+  setStatus('running', '求解中...');
+
+  if (stack.length === 0) {
+    stack.push([startR, startC]);
+    visited[startR][startC] = true;
+    explored = 1;
+    curR = startR; curC = startC;
+    updateUI();
+  }
+
+  while (running && !found && !finished) {
+    const cont = await solveStep();
+    if (!cont) break;
+    await sleep(delay());
+  }
+  draw();
+}
+
+function stopAnim() {
+  running = false;
+  paused = false;
+}
+
+// Event listeners
+btnGenerate.addEventListener('click', () => {
+  generateMaze();
+});
+
+btnStart.addEventListener('click', () => {
+  if (found || finished) resetState();
+  if (stack.length === 0) {
+    stack.push([startR, startC]);
+    visited[startR][startC] = true;
+    explored = 1;
+    curR = startR; curC = startC;
+    updateUI();
+  }
+  solve();
+});
+
+btnPause.addEventListener('click', () => {
+  if (running) {
+    running = false;
+    paused = true;
+    setStatus('paused', '已暂停');
+    btnStart.disabled = false;
+    btnPause.disabled = true;
+  }
+});
+
+btnStep.addEventListener('click', () => {
+  if (found || finished) return;
+  if (stack.length === 0) {
+    stack.push([startR, startC]);
+    visited[startR][startC] = true;
+    explored = 1;
+    curR = startR; curC = startC;
+    updateUI();
+    return;
+  }
+  running = false;
+  paused = false;
+  solveStep().then(() => draw());
+});
+
+btnReset.addEventListener('click', () => {
+  stopAnim();
+  resetState();
+  draw();
+});
+
+speedSlider.addEventListener('input', () => {
+  speedVal.textContent = speedSlider.value;
+});
+
+sizeSlider.addEventListener('input', () => {
+  sizeVal.textContent = sizeSlider.value;
+});
+
+// Click to toggle wall/path
+canvas.addEventListener('click', (e) => {
+  if (running) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const c = Math.floor((e.clientX - rect.left) * scaleX / cellSize);
+  const r = Math.floor((e.clientY - rect.top) * scaleY / cellSize);
+  if (r < 0 || r >= N || c < 0 || c >= N) return;
+  if ((r === startR && c === startC) || (r === endR && c === endC)) return;
+  grid[r][c] = grid[r][c] === WALL ? PATH : WALL;
+  if (found || finished) resetState();
+  draw();
+});
+
+// Init
+generateMaze();
+</script>
+</body>
+</html>
