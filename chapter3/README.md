@@ -51,6 +51,33 @@ int main(void) {
 
 ## 3.2
 
-对于循环队列，另外一种关于`front`和`rear`的定义是：**front指向队头元素，rear指向队尾元素的下一个位置**。
+对于循环队列，另外一种常见的关于`front`和`rear`的定义是：**front指向队头元素，rear指向队尾元素的下一个位置**。重点是理解`front`、`rear`和`size`三者的关系。
 
 ![circular_queue](circle_queue.png)
+
+P.109提到
+
+> “如果采用环形队列，出队的方块可能被新进队的方块覆盖，从而无法求出迷宫的路径。”，
+
+它有个重要的前提是**没有单独记录前驱坐标**。如果在代码中单独记录每个坐标的前驱坐标，那么即使使用环形队列也不会出现这个问题。
+
+```c
+typedef struct {
+  size_t x;
+  size_t y;
+} Position;
+
+Position prev_pos[N + 2][N + 2];
+bool visited[N + 2][N + 2];
+```
+
+在访问一个新位置的时候，关键代码：
+
+```c
+visited[next_x][next_y] = true;
+prev_pos[next_x][next_y] = current;
+Position next = {next_x, next_y};
+queue_enq(queue, next);
+```
+
+P.112的代码使用了`return 1`，这是不合理的。很多初学者对`main`函数的返回值理解不够深入。简单来说，`main`函数的返回值是操作系统用来判断程序是否正常结束的一个标志（*return n; 等价于 exit(n);*）。通常情况下，返回0表示程序正常结束，而非零值表示程序出现了错误或异常情况。因此，在编写C程序时，建议在`main`函数中使用`return 0;`来表示程序成功执行完毕。此外，作为一种特殊情况，执行到 `main` 函数末尾的 `}` 而没有显式 `return`，等价于返回 0。
