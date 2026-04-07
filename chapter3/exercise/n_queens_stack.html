@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>四皇后问题——栈与回溯</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+h1 { font-size: 1.4rem; margin-bottom: 16px; color: #e0e0ff; }
+#main {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+#board-section, #stack-section { text-align: center; }
+#board-section h2, #stack-section h2 { font-size: 1rem; margin-bottom: 8px; color: #aab; }
+#board {
+  display: grid;
+  grid-template-columns: repeat(4, 64px);
+  grid-template-rows: repeat(4, 64px);
+  border: 3px solid #555;
+}
+.cell {
+  width: 64px; height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  position: relative;
+}
+.cell.light { background: #eee8d5; }
+.cell.dark { background: #8b7355; }
+.cell.trying { outline: 3px solid #ff0; outline-offset: -3px; z-index: 1; }
+.cell.trying.safe { outline-color: #0f0; }
+.cell.trying.unsafe { outline-color: #f44; }
+.cell.conflict { background: #f44 !important; }
+.cell.queen { color: #222; }
+.cell.last-queen { background: #b5e8b5 !important; }
+
+/* row/col labels */
+#board-wrap { position: relative; display: inline-block; }
+.row-labels {
+  position: absolute; left: -22px; top: 0;
+  display: flex; flex-direction: column;
+  height: 256px;
+}
+.row-labels span {
+  height: 64px; display: flex; align-items: center;
+  justify-content: center; font-size: 0.85rem; color: #aab;
+}
+.col-labels {
+  display: flex; margin-left: 0;
+}
+.col-labels span {
+  width: 64px; text-align: center; font-size: 0.85rem; color: #aab;
+  padding-top: 4px;
+}
+
+/* Stack */
+#stack-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#stack {
+  width: 80px;
+  border: 2px solid #555;
+  border-top: none;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column-reverse;
+  background: #16213e;
+}
+.stack-elem {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  border-top: 2px solid #555;
+  transition: all 0.2s;
+}
+.stack-elem.active {
+  background: #2a5a8a;
+  color: #fff;
+  font-weight: bold;
+}
+.stack-elem .row-tag {
+  position: absolute;
+  left: -28px;
+  font-size: 0.75rem;
+  color: #888;
+}
+#top-arrow {
+  text-align: center;
+  color: #ff6;
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+#stack-info {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #aab;
+}
+
+/* Controls */
+#controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+#controls button {
+  padding: 8px 18px;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #2a5a8a;
+  color: #fff;
+  transition: background 0.15s;
+}
+#controls button:hover { background: #3a7aba; }
+#controls button:disabled { opacity: 0.4; cursor: default; }
+#step-counter { font-size: 0.9rem; color: #aab; }
+#desc {
+  max-width: 680px;
+  text-align: center;
+  font-size: 0.95rem;
+  min-height: 2em;
+  padding: 8px 16px;
+  background: #16213e;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+#desc .highlight { color: #7fefad; font-weight: bold; }
+#desc .warn { color: #f66; }
+#desc .success { color: #5f5; font-weight: bold; }
+#speed-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #aab;
+}
+#speed-control input { width: 80px; }
+
+.solutions-bar {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #aab;
+}
+.solutions-bar span { color: #7fefad; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>四皇后问题——栈与回溯可视化</h1>
+
+<div id="main">
+  <div id="board-section">
+    <h2>棋盘</h2>
+    <div id="board-wrap">
+      <div class="row-labels" id="row-labels"></div>
+      <div id="board"></div>
+    </div>
+    <div class="col-labels" id="col-labels"></div>
+  </div>
+
+  <div id="stack-section">
+    <h2>栈</h2>
+    <div id="top-arrow">栈顶</div>
+    <div id="stack-container">
+      <div id="stack"></div>
+    </div>
+    <div id="stack-info"></div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="btn-prev" onclick="step(-1)">&#9664;&#9664; 上一步</button>
+  <button id="btn-play" onclick="togglePlay()">&#9654; 播放</button>
+  <button id="btn-next" onclick="step(1)">下一步 &#9654;&#9654;</button>
+  <button id="btn-reset" onclick="reset()">重置</button>
+  <span id="step-counter"></span>
+  <div id="speed-control">
+    速度：<input type="range" id="speed" min="50" max="1000" value="400">
+  </div>
+</div>
+
+<div id="desc"></div>
+<div class="solutions-bar">已找到解：<span id="sol-count">0</span> 个</div>
+
+<script>
+const N = 4;
+let steps = [];
+let current = -1;
+let playing = false;
+let playTimer = null;
+
+// --- Record all steps from the algorithm ---
+function recordSteps() {
+  const stack = [];
+  let row = 0;
+  let solutionCount = 0;
+
+  function snap(action, desc, extras) {
+    steps.push({
+      stack: stack.map((v, i) => ({ col: v, row: i })),
+      row,
+      action,
+      desc,
+      trying: extras?.trying ?? null,
+      safe: extras?.safe ?? null,
+      isSolution: extras?.isSolution ?? false,
+      solutionCount,
+    });
+  }
+
+  stack.push(-1);
+  snap('init', '入栈 -1，从第 0 行开始');
+
+  while (stack.length > 0) {
+    let col = stack[stack.length - 1] + 1;
+    let found = false;
+
+    while (col < N) {
+      const safe = isSafe(stack, row, col);
+      snap('try', `尝试 (<span class="highlight">第 ${row} 行, 第 ${col} 列</span>) → ${safe ? '<span class="success">安全 ✓</span>' : '<span class="warn">冲突 ✗</span>'}`, { trying: { row, col }, safe });
+      if (safe) {
+        found = true;
+        break;
+      }
+      col++;
+    }
+
+    if (found) {
+      stack[stack.length - 1] = col;
+      snap('place', `在 (<span class="highlight">第 ${row} 行, 第 ${col} 列</span>) 放置皇后`, { trying: { row, col }, safe: true });
+
+      if (row === N - 1) {
+        solutionCount++;
+        snap('solution', `<span class="success">★ 找到第 ${solutionCount} 个解！ [${stack.join(', ')}]</span>`, { isSolution: true });
+        // backtrack
+        stack.pop();
+        row--;
+      } else {
+        row++;
+        stack.push(-1);
+        snap('push', `入栈 -1，进入第 ${row} 行`);
+      }
+    } else {
+      snap('backtrack', `<span class="warn">第 ${row} 行无可用列，出栈（回溯）</span>`);
+      stack.pop();
+      row--;
+    }
+  }
+
+  snap('done', '栈为空，所有解已探索完毕。');
+}
+
+function isSafe(stack, row, col) {
+  for (let i = 0; i < stack.length; i++) {
+    // skip the placeholder -1 (top element during search)
+    if (stack[i] === -1) continue;
+    const qCol = stack[i];
+    const qRow = i;
+    if (qCol === col || qRow - qCol === row - col || qRow + qCol === row + col)
+      return false;
+  }
+  return true;
+}
+
+// --- Render ---
+function render(idx) {
+  if (idx < 0 || idx >= steps.length) return;
+  const s = steps[idx];
+
+  // Board
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+
+      // Check if this cell has a queen in the stack
+      const queenHere = s.stack.find(e => e.row === r && e.col === c);
+      if (queenHere) {
+        cell.classList.add('queen');
+        cell.textContent = '♛';
+        // highlight last placed queen
+        if (r === s.stack.length - 1 || (s.stack.length > 0 && s.stack[s.stack.length - 1].col !== -1 && r === s.stack.length - 1)) {
+          cell.classList.add('last-queen');
+        }
+      }
+
+      // Trying position
+      if (s.trying && s.trying.row === r && s.trying.col === c) {
+        cell.classList.add('trying');
+        cell.classList.add(s.safe ? 'safe' : 'unsafe');
+        if (!queenHere) cell.textContent = '♛';
+        // show conflict lines
+        if (!s.safe) {
+          cell.classList.add('conflict');
+        }
+      }
+
+      board.appendChild(cell);
+    }
+  }
+
+  // Stack
+  const stackEl = document.getElementById('stack');
+  stackEl.innerHTML = '';
+  for (let i = 0; i < s.stack.length; i++) {
+    const e = s.stack[i];
+    const div = document.createElement('div');
+    div.className = 'stack-elem';
+    if (i === s.stack.length - 1) div.classList.add('active');
+    div.textContent = e.col === -1 ? '?' : e.col;
+    stackEl.appendChild(div);
+  }
+  // pad stack to N rows
+  for (let i = s.stack.length; i < N; i++) {
+    const div = document.createElement('div');
+    div.className = 'stack-elem';
+    div.style.color = '#333';
+    div.textContent = '';
+    stackEl.appendChild(div);
+  }
+
+  // Info
+  document.getElementById('stack-info').textContent =
+    s.stack.length > 0
+      ? `栈顶 → 第 ${s.stack.length - 1} 行, 第 ${s.stack[s.stack.length - 1].col === -1 ? '?' : s.stack[s.stack.length - 1].col} 列`
+      : '空';
+  document.getElementById('desc').innerHTML = s.desc;
+  document.getElementById('step-counter').textContent = `第 ${idx + 1} 步 / 共 ${steps.length} 步`;
+  document.getElementById('sol-count').textContent = s.solutionCount;
+
+  // Button states
+  document.getElementById('btn-prev').disabled = idx <= 0;
+  document.getElementById('btn-next').disabled = idx >= steps.length - 1;
+}
+
+function step(dir) {
+  const next = current + dir;
+  if (next < 0 || next >= steps.length) return;
+  current = next;
+  render(current);
+}
+
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById('btn-play');
+  if (playing) {
+    btn.textContent = '⏸ 暂停';
+    playTimer = setInterval(() => {
+      if (current >= steps.length - 1) { togglePlay(); return; }
+      step(1);
+    }, parseInt(document.getElementById('speed').value));
+  } else {
+    btn.textContent = '▶ 播放';
+    clearInterval(playTimer);
+  }
+}
+
+function reset() {
+  if (playing) togglePlay();
+  current = 0;
+  render(0);
+}
+
+// --- Init ---
+function init() {
+  // labels
+  const rl = document.getElementById('row-labels');
+  const cl = document.getElementById('col-labels');
+  for (let i = 0; i < N; i++) {
+    const rs = document.createElement('span');
+    rs.textContent = i;
+    rl.appendChild(rs);
+    const cs = document.createElement('span');
+    cs.textContent = i;
+    cl.appendChild(cs);
+  }
+
+  recordSteps();
+  current = 0;
+  render(0);
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); step(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+  if (e.key === 'p') togglePlay();
+});
+
+init();
+</script>
+</body>
+</html>
