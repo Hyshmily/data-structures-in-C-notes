@@ -8,7 +8,7 @@
 typedef struct {
   size_t x;
   size_t y;
-  int next_direction; // 0: up; 1: right; 2: down; 3: left
+  int direction; // 0: up; 1: right; 2: down; 3: left
 } Position;
 
 typedef struct {
@@ -68,7 +68,7 @@ bool find_path(size_t start_x, size_t start_y, size_t end_x, size_t end_y) {
       return true;
     }
     bool find = false;
-    int direction = current.next_direction;
+    int direction = current.direction;
     size_t next_x, next_y;
     while (direction < 4 && !find) {
       direction++;
@@ -94,7 +94,7 @@ bool find_path(size_t start_x, size_t start_y, size_t end_x, size_t end_y) {
         find = true;
     }
     if (find) {
-      stack->data[stack->top].next_direction = direction;
+      stack->data[stack->top].direction = direction;
       Position p = {next_x, next_y, -1};
       stack_push(stack, p);
       MAZE[next_x][next_y] = -1;

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Stack 可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Courier New', monospace;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 {
+    color: #e94560;
+    margin-bottom: 6px;
+    font-size: 1.5rem;
+  }
+  .subtitle {
+    color: #888;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+  }
+  .container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ===== Left: Stack Panel ===== */
+  .stack-panel {
+    background: #16213e;
+    border: 2px solid #0f3460;
+    border-radius: 10px;
+    padding: 20px;
+    min-width: 420px;
+  }
+  .stack-label {
+    text-align: center;
+    color: #e94560;
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+  }
+  .depth-header {
+    display: flex;
+    border-bottom: 1px solid #0f3460;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    font-size: 0.8rem;
+    color: #888;
+  }
+  .depth-header span { text-align: center; }
+  .dh0 { width: 80px; }
+  .dh1 { width: 120px; margin-left: 2px; }
+  .dh2 { width: 120px; margin-left: 2px; }
+  .depth-header .dh-info { flex: 1; text-align: right; }
+  .stack-area {
+    position: relative;
+    min-height: 300px;
+  }
+  .frame-row {
+    display: flex;
+    margin-bottom: 2px;
+    transition: all 0.3s ease;
+  }
+  .frame-cell {
+    height: 52px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    transition: all 0.4s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  .frame-cell.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .frame-cell.empty {
+    border-color: transparent;
+    background: transparent;
+  }
+  .fc0 { width: 80px; }
+  .fc1 { width: 120px; margin-left: 2px; }
+  .fc2 { width: 120px; margin-left: 2px; }
+  .frame-cell.info {
+    flex: 1;
+    justify-content: flex-end;
+    font-size: 0.72rem;
+    padding-right: 8px;
+    color: #aaa;
+    white-space: nowrap;
+  }
+  .frame-main   { background: rgba(0, 184, 148, 0.25); border-color: #00b894; color: #55efc4; }
+  .frame-funcA  { background: rgba(9, 132, 227, 0.25); border-color: #0984e3; color: #74b9ff; }
+  .frame-funcA1 { background: rgba(108, 92, 231, 0.25); border-color: #6c5ce7; color: #a29bfe; }
+  .frame-funcA2 { background: rgba(108, 92, 231, 0.25); border-color: #6c5ce7; color: #a29bfe; }
+  .frame-funcB  { background: rgba(253, 121, 168, 0.25); border-color: #fd79a8; color: #fd79a8; }
+  .frame-cell.reuse {
+    animation: reuseGlow 1s ease 2;
+  }
+  @keyframes reuseGlow {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 12px 3px rgba(233, 69, 96, 0.6); }
+  }
+
+  /* ===== Right: Source + Info Panel ===== */
+  .right-panel {
+    background: #16213e;
+    border: 2px solid #0f3460;
+    border-radius: 10px;
+    padding: 20px;
+    min-width: 300px;
+    max-width: 380px;
+  }
+  .source-label {
+    color: #e94560;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  .source-code {
+    background: #0d1b2a;
+    border: 1px solid #0f3460;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+    counter-reset: line;
+    margin-bottom: 16px;
+  }
+  .source-code .loc { display: block; }
+  .source-code .loc::before {
+    counter-increment: line;
+    content: counter(line);
+    display: inline-block;
+    width: 1.8em;
+    text-align: right;
+    margin-right: 1em;
+    color: #4a5568;
+    font-size: 0.72rem;
+  }
+  .source-code .loc.active {
+    background: rgba(233, 69, 96, 0.15);
+    border-left: 2px solid #e94560;
+    margin-left: -14px;
+    padding-left: 12px;
+  }
+  .source-code .kw  { color: #e94560; }
+  .source-code .fn  { color: #74b9ff; }
+  .source-code .tp  { color: #55efc4; }
+  .source-code .num { color: #ffeaa7; }
+
+  .step-title {
+    color: #e94560;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+  }
+  .explanation {
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #b2bec3;
+    min-height: 60px;
+    padding: 10px;
+    background: #0d1b2a;
+    border-radius: 6px;
+    border-left: 3px solid #e94560;
+  }
+  .explanation strong { color: #ffeaa7; }
+
+  /* ===== Controls ===== */
+  .controls {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button {
+    background: #0f3460;
+    color: #e0e0e0;
+    border: 1px solid #e94560;
+    padding: 8px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+  }
+  button:hover { background: #e94560; color: #fff; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .step-counter {
+    color: #888;
+    font-size: 0.8rem;
+  }
+  .legend {
+    margin-top: 14px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 0.75rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  .ld-main   { background: #00b894; }
+  .ld-funcA  { background: #0984e3; }
+  .ld-funcA1 { background: #6c5ce7; }
+  .ld-funcB  { background: #fd79a8; }
+</style>
+</head>
+<body>
+
+<h1>Call Stack 可视化</h1>
+<p class="subtitle">栈帧 (Stack Frame) 的分配、回收与内存复用</p>
+
+<div class="container">
+  <!-- Left: Stack -->
+  <div class="stack-panel">
+    <div class="stack-label">Stack（高地址在上，低地址在下）</div>
+    <div class="depth-header">
+      <span class="dh0">深度 0</span>
+      <span class="dh1">深度 1</span>
+      <span class="dh2">深度 2</span>
+      <span class="dh-info">局部变量</span>
+    </div>
+    <div class="stack-area" id="stackArea"></div>
+    <div class="controls">
+      <button id="btnPrev" onclick="prevStep()" disabled>&#9664; 上一步</button>
+      <button id="btnNext" onclick="nextStep()">下一步 &#9654;</button>
+      <button id="btnAuto" onclick="toggleAuto()">自动播放</button>
+      <button onclick="resetSteps()">&#8634; 重置</button>
+      <span class="step-counter" id="stepCounter">0 / 11</span>
+    </div>
+  </div>
+
+  <!-- Right: Source code + Step info -->
+  <div class="right-panel">
+    <div class="source-label">调用结构（简化版）</div>
+    <div class="source-code" id="sourceCode"><span class="loc"><span class="tp">void</span> <span class="fn">funcB</span>()  { <span class="tp">int</span> varB = <span class="num">444</span>; }</span><span class="loc"><span class="tp">void</span> <span class="fn">funcA2</span>() { <span class="tp">int</span> varA2 = <span class="num">333</span>; }</span><span class="loc"><span class="tp">void</span> <span class="fn">funcA1</span>() { <span class="tp">int</span> varA1 = <span class="num">222</span>; }</span><span class="loc"></span><span class="loc"><span class="tp">void</span> <span class="fn">funcA</span>() {</span><span class="loc">  <span class="tp">int</span> varA = <span class="num">111</span>;</span><span class="loc">  <span class="fn">funcA1</span>();</span><span class="loc">  <span class="fn">funcA2</span>();</span><span class="loc">}</span><span class="loc"></span><span class="loc"><span class="tp">int</span> <span class="fn">main</span>() {</span><span class="loc">  <span class="tp">int</span> m = <span class="num">0</span>;</span><span class="loc">  <span class="fn">funcA</span>();</span><span class="loc">  <span class="fn">funcB</span>();</span><span class="loc">  <span class="kw">return</span> <span class="num">0</span>;</span><span class="loc">}</span></div>
+    <div class="step-title" id="stepTitle">准备开始</div>
+    <div class="explanation" id="explanation">
+      点击 <strong>下一步</strong> 开始演示调用栈的变化过程。
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot ld-main"></div>main</div>
+  <div class="legend-item"><div class="legend-dot ld-funcA"></div>funcA</div>
+  <div class="legend-item"><div class="legend-dot ld-funcA1"></div>funcA1 / funcA2</div>
+  <div class="legend-item"><div class="legend-dot ld-funcB"></div>funcB</div>
+</div>
+
+<script>
+// activeLine: 1=funcB  2=funcA2  3=funcA1  4=blank
+//             5=funcA{  6=int varA  7=funcA1() 8=funcA2() 9=}  10=blank
+//             11=main{  12=int m  13=funcA() 14=funcB() 15=return 16=}
+const steps = [
+  {
+    title: 'Step 1: 进入 main',
+    explain: '程序从 <strong>main()</strong> 开始执行，第 12 行声明局部变量 <strong>m</strong>，栈上分配 main 的栈帧。',
+    activeLine: [12],
+    frames: [
+      { depth: 0, cls: 'frame-main', name: 'main', var: 'm' },
+    ]
+  },
+  {
+    title: 'Step 2: main 调用 funcA()',
+    explain: '第 13 行，main 调用 <strong>funcA()</strong>，栈向下增长，为 funcA 分配新的栈帧，存入 <strong>varA</strong>。',
+    activeLine: [13],
+    frames: [
+      { depth: 0, cls: 'frame-main',  name: 'main',  var: 'm' },
+      { depth: 1, cls: 'frame-funcA', name: 'funcA', var: 'varA' },
+    ]
+  },
+  {
+    title: 'Step 3: funcA 调用 funcA1()',
+    explain: '第 7 行，funcA 调用 <strong>funcA1()</strong>，栈继续增长，分配 funcA1 的栈帧，存入 <strong>varA1</strong>。',
+    activeLine: [7],
+    frames: [
+      { depth: 0, cls: 'frame-main',   name: 'main',   var: 'm' },
+      { depth: 1, cls: 'frame-funcA',  name: 'funcA',  var: 'varA' },
+      { depth: 2, cls: 'frame-funcA1', name: 'funcA1', var: 'varA1' },
+    ]
+  },
+  {
+    title: 'Step 4: funcA1 返回',
+    explain: '第 3 行 funcA1 的函数体结束，栈帧被回收，栈恢复到 funcA 的深度。',
+    activeLine: [3],
+    frames: [
+      { depth: 0, cls: 'frame-main',  name: 'main',  var: 'm' },
+      { depth: 1, cls: 'frame-funcA', name: 'funcA', var: 'varA' },
+    ]
+  },
+  {
+    title: 'Step 5: funcA 调用 funcA2()',
+    explain: '第 8 行，funcA 调用 <strong>funcA2()</strong>。<strong>funcA2 复用了 funcA1 刚释放的内存！</strong>',
+    activeLine: [8],
+    frames: [
+      { depth: 0, cls: 'frame-main',   name: 'main',   var: 'm' },
+      { depth: 1, cls: 'frame-funcA',  name: 'funcA',  var: 'varA' },
+      { depth: 2, cls: 'frame-funcA2', name: 'funcA2', var: 'varA2', reuse: true },
+    ]
+  },
+  {
+    title: 'Step 6: funcA2 返回',
+    explain: '第 2 行 funcA2 的函数体结束，栈帧被回收。深度 2 的内存再次被释放。',
+    activeLine: [2],
+    frames: [
+      { depth: 0, cls: 'frame-main',  name: 'main',  var: 'm' },
+      { depth: 1, cls: 'frame-funcA', name: 'funcA', var: 'varA' },
+    ]
+  },
+  {
+    title: 'Step 7: funcA 返回',
+    explain: '第 9 行 funcA 的函数体结束，栈帧被回收。栈上只剩 main 的栈帧。',
+    activeLine: [9],
+    frames: [
+      { depth: 0, cls: 'frame-main', name: 'main', var: 'm' },
+    ]
+  },
+  {
+    title: 'Step 8: main 调用 funcB()',
+    explain: '第 14 行，main 调用 <strong>funcB()</strong>。<strong>funcB 复用了 funcA 刚释放的内存！</strong>',
+    activeLine: [14],
+    frames: [
+      { depth: 0, cls: 'frame-main',  name: 'main',  var: 'm' },
+      { depth: 1, cls: 'frame-funcB', name: 'funcB', var: 'varB', reuse: true },
+    ]
+  },
+  {
+    title: 'Step 9: funcB 返回',
+    explain: '第 1 行 funcB 的函数体结束，栈帧被回收。程序回到 main。',
+    activeLine: [1],
+    frames: [
+      { depth: 0, cls: 'frame-main', name: 'main', var: 'm' },
+    ]
+  },
+  {
+    title: 'Step 10: main 返回',
+    explain: '第 15 行 <strong>return 0</strong>，程序结束，整个调用栈被清空。',
+    activeLine: [15],
+    frames: []
+  },
+  {
+    title: '结论：栈帧复用',
+    explain: '<strong>核心要点：</strong>函数返回后，其栈帧内存被回收。下一个被调用的函数如果调用深度相同，就会<strong>复用同一块内存</strong>。栈只需移动栈指针 (ESP/RSP)，不需要额外分配/释放。<br><br><strong>结论 1：</strong>funcB 地址 == funcA 地址（第 14 行 vs 第 13 行，深度 1 复用）<br><strong>结论 2：</strong>funcA2 地址 == funcA1 地址（第 8 行 vs 第 7 行，深度 2 复用）',
+    activeLine: [7, 8, 13, 14],
+    frames: []
+  },
+];
+
+let currentStep = -1;
+let autoTimer = null;
+
+function renderStack(frames) {
+  const area = document.getElementById('stackArea');
+  area.innerHTML = '';
+  if (frames.length === 0) {
+    area.innerHTML = '<div style="text-align:center;color:#636e72;padding:40px 0;font-size:0.85rem;">（栈为空）</div>';
+    return;
+  }
+  frames.forEach((f, idx) => {
+    const row = document.createElement('div');
+    row.className = 'frame-row';
+    for (let d = 0; d < 3; d++) {
+      const cell = document.createElement('div');
+      const w = d === 0 ? 'fc0' : d === 1 ? 'fc1' : 'fc2';
+      if (f.depth === d) {
+        cell.className = 'frame-cell ' + w + ' ' + f.cls + ' visible';
+        if (f.reuse) cell.classList.add('reuse');
+        cell.textContent = f.name;
+      } else {
+        cell.className = 'frame-cell ' + w + ' empty visible';
+      }
+      row.appendChild(cell);
+    }
+    const info = document.createElement('div');
+    info.className = 'frame-cell info visible';
+    info.textContent = f.var || '';
+    row.appendChild(info);
+    area.appendChild(row);
+    setTimeout(() => {
+      row.querySelectorAll('.frame-cell').forEach(c => c.classList.add('visible'));
+    }, idx * 60);
+  });
+}
+
+function highlightSource(lines) {
+  document.querySelectorAll('#sourceCode .loc').forEach((loc, i) => {
+    loc.classList.toggle('active', lines.includes(i + 1));
+  });
+}
+
+function showStep(idx) {
+  currentStep = idx;
+  const s = steps[idx];
+  document.getElementById('stepTitle').textContent = s.title;
+  document.getElementById('explanation').innerHTML = s.explain;
+  document.getElementById('stepCounter').textContent = (idx + 1) + ' / ' + steps.length;
+  renderStack(s.frames);
+  highlightSource(s.activeLine);
+  document.getElementById('btnPrev').disabled = (idx === 0);
+  document.getElementById('btnNext').disabled = (idx === steps.length - 1);
+}
+
+function resetSteps() {
+  if (autoTimer) toggleAuto();
+  showStep(0);
+}
+function nextStep() {
+  if (currentStep < steps.length - 1) showStep(currentStep + 1);
+}
+function prevStep() {
+  if (currentStep > 0) showStep(currentStep - 1);
+}
+function toggleAuto() {
+  if (autoTimer) {
+    clearInterval(autoTimer);
+    autoTimer = null;
+    document.getElementById('btnAuto').textContent = '自动播放';
+  } else {
+    if (currentStep === steps.length - 1) showStep(0);
+    document.getElementById('btnAuto').textContent = '暂停';
+    autoTimer = setInterval(() => {
+      if (currentStep < steps.length - 1) nextStep();
+      else toggleAuto();
+    }, 2000);
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextStep(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevStep(); }
+});
+
+showStep(0);
+</script>
+</body>
+</html>
