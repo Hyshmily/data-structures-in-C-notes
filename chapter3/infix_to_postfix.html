@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中缀转后缀 — 调度场算法可视化</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #a78bfa;
+    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+
+  /* ── Input area ── */
+  .input-row {
+    display: flex;
+    gap: 8px;
+    max-width: 680px;
+    margin: 0 auto 12px;
+  }
+  .input-row input {
+    flex: 1;
+    padding: 10px 14px;
+    background: #1e2130;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .input-row input:focus { border-color: #7c3aed; }
+  .btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-primary { background: #7c3aed; color: #fff; }
+  .btn-secondary { background: #1e2130; color: #94a3b8; border: 1px solid #334155; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .speed-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 680px;
+    margin: 0 auto 20px;
+    font-size: 0.82rem;
+    color: #64748b;
+  }
+  .speed-row input[type=range] { flex: 1; accent-color: #7c3aed; }
+
+  .error-msg {
+    text-align: center;
+    color: #f87171;
+    font-size: 0.85rem;
+    min-height: 20px;
+    margin-bottom: 8px;
+  }
+
+  /* ── Token strip ── */
+  .section-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+  .token-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 48px;
+    align-items: center;
+  }
+  .tok {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: #1e2130;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    transition: background .25s, color .25s, transform .25s, border-color .25s;
+  }
+  .tok.active {
+    background: #fbbf24;
+    color: #0f1117;
+    border-color: #f59e0b;
+    transform: scale(1.18);
+  }
+  .tok.done { color: #475569; border-color: #1e2130; }
+
+  /* ── Main panels ── */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 680px;
+    margin: 0 auto 16px;
+  }
+  @media (max-width: 500px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: #1e2130;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 14px;
+    min-height: 180px;
+  }
+
+  /* Stack: items stacked top-to-bottom, top of stack = first child */
+  .stack-area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 120px;
+    justify-content: flex-start;
+  }
+  .stack-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    color: #a78bfa;
+    animation: slideDown .25s ease;
+  }
+  .stack-item.paren {
+    color: #60a5fa;
+    background: #1e3a5f;
+    border-color: #2563eb;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .stack-empty {
+    color: #334155;
+    font-size: 0.8rem;
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  /* Output */
+  .output-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 120px;
+    align-content: flex-start;
+  }
+  .out-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: #14532d;
+    border: 1px solid #16a34a;
+    color: #4ade80;
+    animation: popIn .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(.5); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ── Description box ── */
+  .desc-box {
+    max-width: 680px;
+    margin: 0 auto 16px;
+    background: #1e2130;
+    border: 1px solid #334155;
+    border-left: 3px solid #7c3aed;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    min-height: 52px;
+    line-height: 1.6;
+  }
+  .desc-box .step-num {
+    font-size: 0.75rem;
+    color: #7c3aed;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    max-width: 680px;
+    margin: 0 auto 12px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 4px;
+    background: #334155;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #7c3aed;
+    border-radius: 2px;
+    transition: width .3s;
+  }
+  .step-counter {
+    font-size: 0.78rem;
+    color: #64748b;
+    white-space: nowrap;
+  }
+
+  .top-section {
+    max-width: 680px;
+    margin: 0 auto 16px;
+    background: #1e2130;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>中缀 → 后缀</h1>
+<p class="subtitle">Shunting-yard Algorithm Visualization</p>
+
+<div class="input-row">
+  <input id="expr-input" type="text" value="3 + 4 * 2" placeholder="例：3 + 4 * 2（token 之间用空格分隔）" />
+  <button class="btn btn-primary" id="btn-start">开始</button>
+  <button class="btn btn-secondary" id="btn-reset">重置</button>
+</div>
+
+<div class="speed-row">
+  <span>慢</span>
+  <input type="range" id="speed-slider" min="1" max="5" value="3" />
+  <span>快</span>
+  <span id="speed-label" style="min-width:32px;text-align:right">1×</span>
+</div>
+
+<div class="error-msg" id="error-msg"></div>
+
+<!-- Token strip -->
+<div class="top-section">
+  <div class="section-label">输入 Token 序列</div>
+  <div class="token-strip" id="token-strip"></div>
+</div>
+
+<!-- Stack + Output -->
+<div class="panels">
+  <div class="panel">
+    <div class="section-label">运算符栈（栈顶在上）</div>
+    <div class="stack-area" id="stack-area">
+      <div class="stack-empty">空</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="section-label">输出（后缀序列）</div>
+    <div class="output-area" id="output-area"></div>
+  </div>
+</div>
+
+<!-- Description -->
+<div class="desc-box" id="desc-box">
+  <div class="step-num" id="step-num"></div>
+  <div id="desc-text">输入表达式后点击「开始」</div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="btn btn-secondary" id="btn-prev" style="padding:8px 14px">◀ 上一步</button>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <span class="step-counter" id="step-counter">0 / 0</span>
+  <button class="btn btn-secondary" id="btn-next" style="padding:8px 14px">下一步 ▶</button>
+  <button class="btn btn-primary"  id="btn-play" style="padding:8px 14px">▶ 播放</button>
+</div>
+
+<script>
+// ── Algorithm: compute all steps ──────────────────────────────────────────
+function precedence(op) {
+  if (op === '*' || op === '/') return 2;
+  if (op === '+' || op === '-') return 1;
+  return 0;
+}
+
+function isOperator(t) { return ['+','-','*','/'].includes(t); }
+function isNumber(t)   { return /^-?\d+(\.\d+)?$/.test(t); }
+
+function computeSteps(tokens) {
+  const steps = [];
+  let opStack = [];
+  let output  = [];
+
+  function snap(tokenIdx, desc) {
+    steps.push({
+      tokenIdx,
+      opStack: [...opStack],
+      output:  [...output],
+      desc
+    });
+  }
+
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+
+    if (t === '(') {
+      opStack.push('(');
+      snap(i, `遇到左括号 <b>(</b>，压入运算符栈作为哨兵。`);
+
+    } else if (isOperator(t)) {
+      const popped = [];
+      while (
+        opStack.length > 0 &&
+        opStack[opStack.length - 1] !== '(' &&
+        precedence(opStack[opStack.length - 1]) >= precedence(t)
+      ) {
+        const top = opStack.pop();
+        output.push(top);
+        popped.push(top);
+        snap(i, `运算符 <b>${t}</b>（优先级 ${precedence(t)}）≤ 栈顶 <b>${top}</b>（优先级 ${precedence(top)}），弹出 <b>${top}</b> 到输出。`);
+      }
+      opStack.push(t);
+      const reason = popped.length === 0
+        ? (opStack.length <= 1
+            ? `运算符栈为空，直接将 <b>${t}</b> 压栈。`
+            : `栈顶 <b>${opStack[opStack.length-2]}</b> 优先级 < <b>${t}</b>（${precedence(opStack[opStack.length-2])} < ${precedence(t)}），停止弹出，将 <b>${t}</b> 压栈。`)
+        : `所有优先级 ≥ <b>${t}</b> 的运算符已弹出，将 <b>${t}</b> 压栈。`;
+      snap(i, reason);
+
+    } else if (t === ')') {
+      snap(i, `遇到右括号 <b>)</b>，开始弹出运算符直到匹配的 <b>(</b>。`);
+      while (opStack.length > 0 && opStack[opStack.length - 1] !== '(') {
+        const top = opStack.pop();
+        output.push(top);
+        snap(i, `弹出栈顶 <b>${top}</b> 到输出（尚未遇到 <b>(</b>）。`);
+      }
+      opStack.pop(); // discard '('
+      snap(i, `弹出并丢弃匹配的 <b>(</b>，括号处理完毕。`);
+
+    } else if (isNumber(t)) {
+      output.push(t);
+      snap(i, `<b>${t}</b> 是操作数，直接输出。`);
+    }
+  }
+
+  // flush remaining operators
+  if (opStack.length > 0) {
+    snap(-1, `输入扫描完毕，开始将运算符栈中剩余运算符依次弹出到输出。`);
+    while (opStack.length > 0) {
+      const top = opStack.pop();
+      output.push(top);
+      snap(-1, `弹出栈顶 <b>${top}</b> 到输出。`);
+    }
+  }
+
+  snap(-1, `转换完成！后缀表达式为：<b>${output.join(' ')}</b>`);
+  return steps;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let tokens  = [];
+let steps   = [];
+let current = -1;   // index into steps; -1 = not started
+let playTimer = null;
+let speedMultiplier = 1;
+
+const SPEED_MAP = [0.4, 0.7, 1, 1.8, 3]; // index 0..4
+
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const exprInput    = document.getElementById('expr-input');
+const btnStart     = document.getElementById('btn-start');
+const btnReset     = document.getElementById('btn-reset');
+const btnPrev      = document.getElementById('btn-prev');
+const btnNext      = document.getElementById('btn-next');
+const btnPlay      = document.getElementById('btn-play');
+const speedSlider  = document.getElementById('speed-slider');
+const speedLabel   = document.getElementById('speed-label');
+const errorMsg     = document.getElementById('error-msg');
+const tokenStrip   = document.getElementById('token-strip');
+const stackArea    = document.getElementById('stack-area');
+const outputArea   = document.getElementById('output-area');
+const descBox      = document.getElementById('desc-box');
+const descText     = document.getElementById('desc-text');
+const stepNum      = document.getElementById('step-num');
+const progressFill = document.getElementById('progress-fill');
+const stepCounter  = document.getElementById('step-counter');
+
+// ── Render ────────────────────────────────────────────────────────────────
+function renderTokenStrip(activeIdx) {
+  tokenStrip.innerHTML = '';
+  tokens.forEach((t, i) => {
+    const el = document.createElement('span');
+    el.className = 'tok' +
+      (i === activeIdx ? ' active' : i < activeIdx || activeIdx === -1 ? ' done' : '');
+    el.textContent = t;
+    tokenStrip.appendChild(el);
+  });
+}
+
+function renderStack(stack) {
+  stackArea.innerHTML = '';
+  if (stack.length === 0) {
+    stackArea.innerHTML = '<div class="stack-empty">空</div>';
+    return;
+  }
+  // top of stack first
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const el = document.createElement('div');
+    el.className = 'stack-item' + (stack[i] === '(' ? ' paren' : '');
+    el.textContent = stack[i];
+    stackArea.appendChild(el);
+  }
+}
+
+function renderOutput(out) {
+  outputArea.innerHTML = '';
+  out.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'out-item';
+    el.textContent = t;
+    outputArea.appendChild(el);
+  });
+}
+
+function renderStep(idx) {
+  if (idx < 0 || idx >= steps.length) return;
+  const s = steps[idx];
+  renderTokenStrip(s.tokenIdx);
+  renderStack(s.opStack);
+  renderOutput(s.output);
+  descText.innerHTML = s.desc;
+  stepNum.textContent = `步骤 ${idx + 1} / ${steps.length}`;
+  const pct = steps.length > 1 ? (idx / (steps.length - 1)) * 100 : 100;
+  progressFill.style.width = pct + '%';
+  stepCounter.textContent = `${idx + 1} / ${steps.length}`;
+  updateButtons();
+}
+
+function updateButtons() {
+  btnPrev.disabled = current <= 0;
+  btnNext.disabled = current >= steps.length - 1;
+  btnPlay.textContent = playTimer ? '⏸ 暂停' : '▶ 播放';
+  btnPlay.disabled = steps.length === 0;
+}
+
+// ── Playback ──────────────────────────────────────────────────────────────
+function playNext() {
+  if (current < steps.length - 1) {
+    current++;
+    renderStep(current);
+    const delay = 900 / speedMultiplier;
+    playTimer = setTimeout(playNext, delay);
+  } else {
+    stopPlay();
+  }
+}
+
+function stopPlay() {
+  if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+  updateButtons();
+}
+
+function togglePlay() {
+  if (playTimer) {
+    stopPlay();
+  } else {
+    if (current >= steps.length - 1) current = -1;
+    const delay = 900 / speedMultiplier;
+    playTimer = setTimeout(playNext, delay);
+    // immediately advance one step
+    current++;
+    renderStep(current);
+    updateButtons();
+  }
+}
+
+// ── Init / Start ──────────────────────────────────────────────────────────
+function validate(toks) {
+  for (const t of toks) {
+    if (!isNumber(t) && !isOperator(t) && t !== '(' && t !== ')') {
+      return `无效 token: "${t}"。只支持数字、+ - * / ( )`;
+    }
+  }
+  return null;
+}
+
+function startVisualization() {
+  stopPlay();
+  errorMsg.textContent = '';
+  const raw = exprInput.value.trim();
+  if (!raw) { errorMsg.textContent = '请输入表达式'; return; }
+  const toks = raw.split(/\s+/);
+  const err = validate(toks);
+  if (err) { errorMsg.textContent = err; return; }
+
+  tokens  = toks;
+  steps   = computeSteps(tokens);
+  current = 0;
+  renderStep(0);
+}
+
+function resetVisualization() {
+  stopPlay();
+  tokens  = [];
+  steps   = [];
+  current = -1;
+  tokenStrip.innerHTML = '';
+  stackArea.innerHTML  = '<div class="stack-empty">空</div>';
+  outputArea.innerHTML = '';
+  descText.innerHTML   = '输入表达式后点击「开始」';
+  stepNum.textContent  = '';
+  progressFill.style.width = '0%';
+  stepCounter.textContent  = '0 / 0';
+  updateButtons();
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────
+btnStart.addEventListener('click', startVisualization);
+btnReset.addEventListener('click', resetVisualization);
+
+btnPrev.addEventListener('click', () => {
+  stopPlay();
+  if (current > 0) { current--; renderStep(current); }
+});
+btnNext.addEventListener('click', () => {
+  stopPlay();
+  if (current < steps.length - 1) { current++; renderStep(current); }
+});
+btnPlay.addEventListener('click', togglePlay);
+
+exprInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') startVisualization();
+});
+
+speedSlider.addEventListener('input', () => {
+  const v = parseInt(speedSlider.value) - 1; // 0..4
+  speedMultiplier = SPEED_MAP[v];
+  const labels = ['0.4×','0.7×','1×','1.8×','3×'];
+  speedLabel.textContent = labels[v];
+});
+
+// init button states
+updateButtons();
+</script>
+</body>
+</html>
