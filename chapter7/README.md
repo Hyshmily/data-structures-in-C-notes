@@ -36,6 +36,10 @@
 
 ## 7.2
 
+教材中对二叉树（binary tree）的定义非常不清晰。更简单的定义是：
+
+> A binary tree is a tree in which each node has at most two children, which are referred to as the left child and the right child.
+
 关于二叉树与树、森林的转换是考试的重点内容。但从工程出发，它们本质还是理解树的*left-child, right-sibling representation*。
 
 ## 7.3
@@ -126,4 +130,4 @@ $$
 
 ## 7.5
 
-参考可视化：https://bst.zhongpu.info/
+二叉搜索树可视化：https://bst.zhongpu.info/
