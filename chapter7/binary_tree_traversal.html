@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>二叉树遍历可视化</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --highlight-color: #f5a623;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            background: white;
+            padding: 2rem;
+            margin-top: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #357abd;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        #visualization {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            background-color: #fafafa;
+        }
+
+        .node circle {
+            fill: white;
+            stroke: var(--primary-color);
+            stroke-width: 2px;
+            transition: fill 0.4s, stroke 0.4s;
+        }
+
+        .node text {
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .node.active circle {
+            fill: var(--highlight-color);
+            stroke: #d48806;
+        }
+
+        .node.visited circle {
+            fill: #e6f7ff;
+            stroke: var(--primary-color);
+        }
+
+        .link {
+            stroke: #999;
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        #result {
+            margin-top: 1rem;
+            padding: 15px;
+            background: #eee;
+            border-radius: 4px;
+            min-height: 1.2em;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        .hint {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>二叉树遍历可视化</h1>
+    
+    <div class="hint">
+        输入格式示例：<code>A(B(D,E),C(F,G))</code>。逗号左边为左子树，右边为右子树。
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="treeInput" placeholder="输入括号表达式，例如: A(B,C)" value="A(B(D,E),C(F,G))">
+        <button onclick="handleDraw()">生成树</button>
+    </div>
+
+    <div class="controls">
+        <button id="preBtn" onclick="startTraversal('preorder')">前序遍历 (Preorder)</button>
+        <button id="inBtn" onclick="startTraversal('inorder')">中序遍历 (Inorder)</button>
+        <button id="postBtn" onclick="startTraversal('postorder')">后序遍历 (Postorder)</button>
+    </div>
+
+    <svg id="visualization"></svg>
+
+    <div id="result">遍历结果将在此显示...</div>
+</div>
+
+<script>
+    class TreeNode {
+        constructor(val) {
+            this.val = val;
+            this.left = null;
+            this.right = null;
+            this.id = 'node-' + Math.random().toString(36).substr(2, 9);
+            this.x = 0;
+            this.y = 0;
+        }
+    }
+
+    let rootNode = null;
+    let animationTimer = null;
+    const svg = document.getElementById('visualization');
+    const resultDiv = document.getElementById('result');
+
+    // 解析括号表达式
+    function parseExpression(str) {
+        str = str.replace(/\s+/g, '');
+        if (!str) return null;
+
+        let stack = [];
+        let root = null;
+        let p = null;
+        let k = 0; // 1: left, 2: right
+
+        for (let i = 0; i < str.length; i++) {
+            let char = str[i];
+            if (char === '(') {
+                stack.push(p);
+                k = 1;
+            } else if (char === ',') {
+                k = 2;
+            } else if (char === ')') {
+                stack.pop();
+            } else {
+                // 读取完整的节点名称 (支持多字符)
+                let val = '';
+                while (i < str.length && /[a-zA-Z0-9]/.test(str[i])) {
+                    val += str[i];
+                    i++;
+                }
+                i--; // 回退一位，因为外层循环会自增
+
+                let node = new TreeNode(val);
+                if (!root) {
+                    root = node;
+                } else {
+                    let parent = stack[stack.length - 1];
+                    if (k === 1) parent.left = node;
+                    else if (k === 2) parent.right = node;
+                }
+                p = node;
+            }
+        }
+        return root;
+    }
+
+    // 计算布局坐标 (x, y)
+    function calculateLayout(node, xStart, xEnd, y, level) {
+        if (!node) return;
+
+        const mid = (xStart + xEnd) / 2;
+        node.x = mid;
+        node.y = y;
+
+        const nextY = y + 80;
+        calculateLayout(node.left, xStart, mid, nextY, level + 1);
+        calculateLayout(node.right, mid, xEnd, nextY, level + 1);
+    }
+
+    // 绘制 SVG
+    function drawTree(node) {
+        svg.innerHTML = '';
+        if (!node) return;
+
+        // 绘制连线
+        const drawLinks = (n) => {
+            if (n.left) {
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", n.x);
+                line.setAttribute("y1", n.y);
+                line.setAttribute("x2", n.left.x);
+                line.setAttribute("y2", n.left.y);
+                line.setAttribute("class", "link");
+                svg.appendChild(line);
+                drawLinks(n.left);
+            }
+            if (n.right) {
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", n.x);
+                line.setAttribute("y1", n.y);
+                line.setAttribute("x2", n.right.x);
+                line.setAttribute("y2", n.right.y);
+                line.setAttribute("class", "link");
+                svg.appendChild(line);
+                drawLinks(n.right);
+            }
+        };
+
+        // 绘制节点
+        const drawNodes = (n) => {
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("class", "node");
+            g.setAttribute("id", n.id);
+            
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", n.x);
+            circle.setAttribute("cy", n.y);
+            circle.setAttribute("r", 20);
+            
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", n.x);
+            text.setAttribute("y", n.y);
+            text.textContent = n.val;
+
+            g.appendChild(circle);
+            g.appendChild(text);
+            svg.appendChild(g);
+
+            if (n.left) drawNodes(n.left);
+            if (n.right) drawNodes(n.right);
+        };
+
+        drawLinks(node);
+        drawNodes(node);
+    }
+
+    function handleDraw() {
+        stopAnimation();
+        const input = document.getElementById('treeInput').value;
+        rootNode = parseExpression(input);
+        if (!rootNode) {
+            alert("请输入合法的括号表达式！");
+            return;
+        }
+        calculateLayout(rootNode, 0, svg.clientWidth, 50, 0);
+        drawTree(rootNode);
+        resultDiv.textContent = "树已生成，点击下方按钮开始遍历动画。";
+    }
+
+    // 遍历算法
+    function getPreorder(node, arr = []) {
+        if (!node) return arr;
+        arr.push(node);
+        getPreorder(node.left, arr);
+        getPreorder(node.right, arr);
+        return arr;
+    }
+
+    function getInorder(node, arr = []) {
+        if (!node) return arr;
+        getInorder(node.left, arr);
+        arr.push(node);
+        getInorder(node.right, arr);
+        return arr;
+    }
+
+    function getPostorder(node, arr = []) {
+        if (!node) return arr;
+        getPostorder(node.left, arr);
+        getPostorder(node.right, arr);
+        arr.push(node);
+        return arr;
+    }
+
+    function stopAnimation() {
+        if (animationTimer) {
+            clearTimeout(animationTimer);
+            animationTimer = null;
+        }
+        document.querySelectorAll('.node').forEach(n => {
+            n.classList.remove('active', 'visited');
+        });
+        setButtonsDisabled(false);
+    }
+
+    function setButtonsDisabled(disabled) {
+        document.getElementById('preBtn').disabled = disabled;
+        document.getElementById('inBtn').disabled = disabled;
+        document.getElementById('postBtn').disabled = disabled;
+    }
+
+    function startTraversal(type) {
+        if (!rootNode) {
+            handleDraw();
+            if (!rootNode) return;
+        }
+
+        stopAnimation();
+        setButtonsDisabled(true);
+
+        let sequence = [];
+        let title = "";
+        if (type === 'preorder') {
+            sequence = getPreorder(rootNode);
+            title = "前序遍历: ";
+        } else if (type === 'inorder') {
+            sequence = getInorder(rootNode);
+            title = "中序遍历: ";
+        } else if (type === 'postorder') {
+            sequence = getPostorder(rootNode);
+            title = "后序遍历: ";
+        }
+
+        resultDiv.textContent = title;
+        animate(sequence, 0);
+    }
+
+    function animate(sequence, index) {
+        if (index >= sequence.length) {
+            setButtonsDisabled(false);
+            return;
+        }
+
+        const node = sequence[index];
+        const el = document.getElementById(node.id);
+        
+        // 高亮当前节点
+        el.classList.add('active');
+        
+        // 更新文字结果
+        resultDiv.textContent += (index === 0 ? "" : " -> ") + node.val;
+
+        animationTimer = setTimeout(() => {
+            el.classList.remove('active');
+            el.classList.add('visited');
+            animate(sequence, index + 1);
+        }, 800);
+    }
+
+    // 窗口调整大小时重新计算布局
+    window.addEventListener('resize', () => {
+        if (rootNode) {
+            calculateLayout(rootNode, 0, svg.clientWidth, 50, 0);
+            drawTree(rootNode);
+        }
+    });
+
+    // 页面加载后默认绘制一次
+    window.onload = handleDraw;
+
+</script>
+
+</body>
+</html>

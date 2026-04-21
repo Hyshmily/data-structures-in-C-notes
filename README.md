@@ -9,7 +9,15 @@
 
 ## 推荐书籍（C语言版）
 
+>[!TIP]
+> 如果是应试角度出发，还是优先使用国内教材。
+
 数据结构基于C语言的相关教材目前发现最好的只有两本：
 
 - [Data Structures and Algorithm Analysis in C, by Mark Allen Weiss, 2nd Edition](https://book.douban.com/subject/4924153/)
 - [Algorithms in C, by Robert Sedgewick, 3rd Edition](https://book.douban.com/subject/1869681/)
+
+如果不限制编程语言，最好的两本书：
+
+- [Introduction to Algorithms, by Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein, 3rd Edition](https://book.douban.com/subject/20432061/)
+- [Algorithms, by Robert Sedgewick, 4th Edition](https://book.douban.com/subject/10432347/)
