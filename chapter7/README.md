@@ -119,7 +119,7 @@ createTreeHelper("A(B,C)", &0)
 - 假设对于高度不超过h的树，算法正确。那么对于高度为h的树，形如
 
 $$
-s = \underbrace{N}_{\text{根}} \underbrace{(}_{\phantom{x}} \underbrace{L}_{\text{左子树}} \underbrace{,}_{\phantom{x}} \underbrace{R}_{\text{右子树}} \underbrace{)}_{\phantom{x}}
+s = \underbrace{N}_{\text{根}} \underbrace{(}_{\text{ }} \underbrace{L}_{\text{左子树}} \underbrace{,}_{\text{ }} \underbrace{R}_{\text{右子树}} \underbrace{)}_{\text{ }}
 $$
 
 读者也可以证明其正确性。
