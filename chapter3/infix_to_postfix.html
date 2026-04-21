@@ -265,10 +265,10 @@
 <body>
 
 <h1>中缀 → 后缀</h1>
-<p class="subtitle">Shunting-yard Algorithm Visualization</p>
+<p class="subtitle">Shunting-yard Algorithm Visualization · 支持数字与变量名</p>
 
 <div class="input-row">
-  <input id="expr-input" type="text" value="3 + 4 * 2" placeholder="例：3 + 4 * 2（token 之间用空格分隔）" />
+  <input id="expr-input" type="text" value="a + b * c" placeholder="例：a + b * c 或 3 + 4 * 2（token 之间用空格分隔）" />
   <button class="btn btn-primary" id="btn-start">开始</button>
   <button class="btn btn-secondary" id="btn-reset">重置</button>
 </div>
@@ -327,6 +327,7 @@ function precedence(op) {
 
 function isOperator(t) { return ['+','-','*','/'].includes(t); }
 function isNumber(t)   { return /^-?\d+(\.\d+)?$/.test(t); }
+function isOperand(t)  { return isNumber(t) || /^[A-Za-z_]\w*$/.test(t); }
 
 function computeSteps(tokens) {
   const steps = [];
@@ -379,7 +380,7 @@ function computeSteps(tokens) {
       opStack.pop(); // discard '('
       snap(i, `弹出并丢弃匹配的 <b>(</b>，括号处理完毕。`);
 
-    } else if (isNumber(t)) {
+    } else if (isOperand(t)) {
       output.push(t);
       snap(i, `<b>${t}</b> 是操作数，直接输出。`);
     }
@@ -519,8 +520,8 @@ function togglePlay() {
 // ── Init / Start ──────────────────────────────────────────────────────────
 function validate(toks) {
   for (const t of toks) {
-    if (!isNumber(t) && !isOperator(t) && t !== '(' && t !== ')') {
-      return `无效 token: "${t}"。只支持数字、+ - * / ( )`;
+    if (!isOperand(t) && !isOperator(t) && t !== '(' && t !== ')') {
+      return `无效 token: "${t}"。只支持操作数（数字或变量名）、+ - * / ( )`;
     }
   }
   return null;

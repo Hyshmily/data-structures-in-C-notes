@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>树转二叉树转换器 - 动态演示</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --border-color: #ddd;
+            --left-link: #e74c3c;
+            --right-link: #2ecc71;
+            --sibling-link: #999;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .input-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 900px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #357abd;
+        }
+
+        button.secondary {
+            background-color: #67c23a;
+        }
+
+        button.secondary:hover {
+            background-color: #529b2e;
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 1300px;
+        }
+
+        .demo-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .demo-card h2 {
+            margin-top: 0;
+            font-size: 20px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .step-info {
+            font-weight: bold;
+            color: #e67e22;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .visualization-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 450px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .chart-card h2 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #555;
+            border-bottom: 2px solid var(--bg-color);
+            width: 100%;
+            text-align: center;
+            padding-bottom: 8px;
+        }
+
+        svg {
+            width: 100%;
+            height: 500px;
+            background: #fafafa;
+            border-radius: 4px;
+        }
+
+        .node circle {
+            fill: #fff;
+            stroke: var(--primary-color);
+            stroke-width: 2px;
+        }
+
+        .node text {
+            font: 12px sans-serif;
+            font-weight: bold;
+        }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 1.5px;
+            transition: opacity 0.5s;
+        }
+
+        .sibling-link {
+            fill: none;
+            stroke: var(--sibling-link);
+            stroke-width: 1.5px;
+            stroke-dasharray: 4, 4;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            display: none;
+            font-size: 14px;
+        }
+
+        .legend {
+            font-size: 12px;
+            margin-top: 5px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .nav-links {
+            margin-top: 15px;
+        }
+        
+        .nav-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>树转二叉树转换器 - 算法演示</h1>
+        <p>演示“左孩子右兄弟”转换过程：兄弟连线、断开旧枝、旋转对齐。</p>
+    </header>
+
+    <div class="input-container">
+        <div class="input-group">
+            <input type="text" id="dslInput" placeholder="请输入树的 DSL，例如：A(B(E,F),C,D(G))" value="A(B(E,F),C,D(G))">
+            <div class="btn-group">
+                <button onclick="handleConvert()">静态转换</button>
+                <button class="secondary" onclick="startAnimation()">演示动画</button>
+            </div>
+        </div>
+        <div class="help-text">
+            语法：<code>根节点(子节点1, 子节点2, ...)</code>。
+        </div>
+        <div id="errorMessage" class="error">DSL 格式错误。请检查括号是否匹配。</div>
+    </div>
+
+    <div class="main-layout">
+        <div class="demo-card" id="animationCard" style="display: none;">
+            <h2>转换过程演示</h2>
+            <div class="controls">
+                <button onclick="prevStep()">上一步</button>
+                <div class="step-info" id="stepInfo">准备开始...</div>
+                <button onclick="nextStep()">下一步</button>
+                <button onclick="resetAnimation()">重置</button>
+            </div>
+            <div id="demoArea" style="width: 100%;"></div>
+            <div class="legend" id="demoLegend" style="display: none;">
+                <div class="legend-item"><div class="legend-color" style="background: var(--left-link);"></div><span>左：孩子</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: var(--right-link);"></div><span>右：兄弟</span></div>
+            </div>
+        </div>
+
+        <div class="visualization-container" id="staticResults">
+            <div class="chart-card">
+                <h2>原始普通树</h2>
+                <div id="generalTree" style="width: 100%;"></div>
+            </div>
+            <div class="chart-card">
+                <h2>转换后的二叉树</h2>
+                <div id="binaryTree" style="width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="nav-links">
+        <a href="binary2tree.html">二叉树转普通树 →</a>
+    </div>
+
+    <script>
+        // --- Parsing and Logic ---
+        function parseDSL(input) {
+            input = input.replace(/\s+/g, '');
+            if (!input) return null;
+            let index = 0;
+            function parseNode() {
+                let name = "";
+                while (index < input.length && !['(', ')', ','].includes(input[index])) {
+                    name += input[index++];
+                }
+                if (!name) return null;
+                let node = { name: name, children: [] };
+                if (index < input.length && input[index] === '(') {
+                    index++;
+                    while (index < input.length && input[index] !== ')') {
+                        let child = parseNode();
+                        if (child) node.children.push(child);
+                        if (index < input.length && input[index] === ',') index++;
+                    }
+                    if (index < input.length && input[index] === ')') index++;
+                }
+                return node;
+            }
+            try { return parseNode(); } catch (e) { return null; }
+        }
+
+        function convertToBinary(node) {
+            if (!node) return null;
+            function transformChildren(siblings) {
+                if (!siblings || siblings.length === 0) return null;
+                let first = siblings[0];
+                let binNode = { name: first.name, children: [] };
+                let lc = first.children && first.children.length > 0 ? transformChildren(first.children) : null;
+                let rc = siblings.length > 1 ? transformChildren(siblings.slice(1)) : null;
+                if (lc || rc) {
+                    binNode.children.push(lc || { name: "", hidden: true, isLeft: true });
+                    binNode.children.push(rc || { name: "", hidden: true, isRight: true });
+                    if (lc) lc.isLeft = true;
+                    if (rc) rc.isRight = true;
+                }
+                return binNode;
+            }
+            let res = transformChildren([node]);
+            if (res) res.isRoot = true;
+            return res;
+        }
+
+        // --- Static Drawing ---
+        function drawTree(data, selector, isBinary = false) {
+            const container = document.querySelector(selector);
+            container.innerHTML = "";
+            if (!data) return;
+            const width = container.clientWidth || 450;
+            const height = 500;
+            const margin = { top: 40, right: 20, bottom: 40, left: 20 };
+            const svg = d3.select(selector).append("svg").attr("width", width).attr("height", height)
+                .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            const treemap = d3.tree().size([width - margin.left - margin.right, height - margin.top - margin.bottom]);
+            let root = d3.hierarchy(data, d => d.children && d.children.length > 0 ? d.children : null);
+            root = treemap(root);
+            svg.selectAll(".link").data(root.descendants().slice(1)).enter().append("path").attr("class", "link")
+                .style("stroke", d => d.data.hidden ? "none" : (isBinary ? (d.data.isLeft ? "var(--left-link)" : "var(--right-link)") : "#ccc"))
+                .attr("d", d => `M${d.x},${d.y}C${d.x},${(d.y + d.parent.y) / 2} ${d.parent.x},${(d.y + d.parent.y) / 2} ${d.parent.x},${d.parent.y}`);
+            const node = svg.selectAll(".node").data(root.descendants()).enter().append("g").attr("transform", d => `translate(${d.x},${d.y})`)
+                .style("display", d => d.data.hidden ? "none" : "block");
+            node.append("circle").attr("r", 15).style("fill", "#fff").style("stroke", "var(--primary-color)");
+            node.append("text").attr("dy", ".35em").attr("text-anchor", "middle").text(d => d.data.name);
+        }
+
+        // --- Animation Logic ---
+        let currentStep = 0;
+        let animationData = null;
+        let svgDemo, gDemo;
+        const STEPS = [
+            "步骤 0: 原始普通树",
+            "步骤 1: 相邻兄弟添加虚线 (右孩子雏形)",
+            "步骤 2: 仅保留第一个孩子的连线 (左孩子)",
+            "步骤 3: 旋转并重新布局 (结构对齐)"
+        ];
+
+        function startAnimation() {
+            const input = document.getElementById('dslInput').value;
+            const tree = parseDSL(input);
+            if (!tree) return;
+            animationData = tree;
+            document.getElementById('animationCard').style.display = 'flex';
+            document.getElementById('staticResults').style.display = 'none';
+            resetAnimation();
+        }
+
+        function resetAnimation() {
+            currentStep = 0;
+            renderDemo();
+        }
+
+        function nextStep() {
+            if (currentStep < 3) {
+                currentStep++;
+                renderDemo();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                renderDemo();
+            }
+        }
+
+        function renderDemo() {
+            const container = document.getElementById('demoArea');
+            container.innerHTML = "";
+            document.getElementById('stepInfo').innerText = STEPS[currentStep];
+            document.getElementById('demoLegend').style.display = (currentStep === 3) ? 'flex' : 'none';
+
+            const width = container.clientWidth || 800;
+            const height = 500;
+            const margin = { top: 50, right: 50, bottom: 50, left: 50 };
+
+            svgDemo = d3.select("#demoArea").append("svg").attr("width", width).attr("height", height);
+            gDemo = svgDemo.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // 1. Calculate Positions
+            // General Tree Positions
+            const genLayout = d3.tree().size([width - 100, height - 100]);
+            const genRoot = d3.hierarchy(animationData);
+            genLayout(genRoot);
+
+            // Binary Tree Positions
+            const binData = convertToBinary(animationData);
+            const binLayout = d3.tree().size([width - 100, height - 100]);
+            const binRoot = d3.hierarchy(binData);
+            binLayout(binRoot);
+
+            // Map binary positions back to general node names
+            const binPosMap = {};
+            binRoot.descendants().forEach(d => {
+                if (d.data.name) binPosMap[d.data.name] = { x: d.x, y: d.y };
+            });
+
+            const nodes = genRoot.descendants();
+            const links = genRoot.links();
+
+            // Sibling links for Step 1
+            const siblingLinks = [];
+            nodes.forEach(n => {
+                if (n.children) {
+                    for (let i = 0; i < n.children.length - 1; i++) {
+                        siblingLinks.push({ source: n.children[i], target: n.children[i+1] });
+                    }
+                }
+            });
+
+            // Draw Links
+            const linkElements = gDemo.selectAll(".link-gen")
+                .data(links)
+                .enter().append("path")
+                .attr("class", "link")
+                .style("opacity", d => {
+                    if (currentStep >= 2) {
+                        // In Step 2+, only first child link remains
+                        return d.source.children[0] === d.target ? 1 : 0;
+                    }
+                    return 1;
+                })
+                .style("stroke", d => (currentStep === 3) ? "var(--left-link)" : "#ccc")
+                .attr("d", d => {
+                    const startPos = (currentStep === 3) ? binPosMap[d.source.data.name] : d.source;
+                    const endPos = (currentStep === 3) ? binPosMap[d.target.data.name] : d.target;
+                    return drawPath(startPos, endPos);
+                });
+
+            // Draw Sibling Links
+            if (currentStep >= 1) {
+                gDemo.selectAll(".link-sib")
+                    .data(siblingLinks)
+                    .enter().append("path")
+                    .attr("class", currentStep === 3 ? "link" : "sibling-link")
+                    .style("stroke", currentStep === 3 ? "var(--right-link)" : "var(--sibling-link)")
+                    .style("stroke-dasharray", currentStep === 3 ? "none" : "4,4")
+                    .attr("d", d => {
+                        const startPos = (currentStep === 3) ? binPosMap[d.source.data.name] : d.source;
+                        const endPos = (currentStep === 3) ? binPosMap[d.target.data.name] : d.target;
+                        return drawPath(startPos, endPos);
+                    });
+            }
+
+            // Draw Nodes
+            const nodeElements = gDemo.selectAll(".node")
+                .data(nodes)
+                .enter().append("g")
+                .attr("transform", d => {
+                    const pos = (currentStep === 3) ? binPosMap[d.data.name] : d;
+                    return `translate(${pos.x},${pos.y})`;
+                });
+
+            nodeElements.append("circle")
+                .attr("r", 18)
+                .style("fill", "#fff")
+                .style("stroke", "var(--primary-color)")
+                .style("stroke-width", 2);
+
+            nodeElements.append("text")
+                .attr("dy", ".35em")
+                .attr("text-anchor", "middle")
+                .text(d => d.data.name);
+        }
+
+        function drawPath(s, t) {
+            return `M${s.x},${s.y}C${s.x},${(s.y + t.y) / 2} ${t.x},${(s.y + t.y) / 2} ${t.x},${t.y}`;
+        }
+
+        function handleConvert() {
+            document.getElementById('animationCard').style.display = 'none';
+            document.getElementById('staticResults').style.display = 'flex';
+            const input = document.getElementById('dslInput').value;
+            const tree = parseDSL(input);
+            if (!tree) {
+                document.getElementById('errorMessage').style.display = 'block';
+                return;
+            }
+            document.getElementById('errorMessage').style.display = 'none';
+            const binary = convertToBinary(tree);
+            drawTree(tree, "#generalTree", false);
+            drawTree(binary, "#binaryTree", true);
+        }
+
+        window.onload = handleConvert;
+    </script>
+</body>
+</html>
