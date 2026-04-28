@@ -131,3 +131,83 @@ $$
 ## 7.5
 
 二叉搜索树可视化：https://bst.zhongpu.info/
+
+理解递归算法的一种技巧是：理解其“递归不变式”（递归不变式是指在递归过程中始终保持为真的条件）。
+
+考虑计算结点深度的算法（教材例7.13）:
+
+```c
+int levelOfNode(Node *root, char x, int level) {
+  if (root == NULL) {
+    return 0;
+  }
+  if (root->data == x) {
+    return level;
+  }
+
+  int leftLevel = levelOfNode(root->left, x, level + 1);
+  if (leftLevel != 0) {
+    return leftLevel;
+  }
+
+  return levelOfNode(root->right, x, level + 1);
+}
+```
+
+上面函数的核心是：  
+- 如果以 root 为根的子树中存在值为 x 的结点，就返回它在整棵树中的层次
+- 如果不存在，就返回 0
+
+在这个断言成立的前提下，初始调用`levelOfNode(root, x, 1)`可以正确地计算出结点 x 在树中的深度。进一步，我们可以通过数学归纳法证明其正确性。
+
+很多时候，更简单的递归算法依赖对树的结构和性质的理解。考虑教材例7.14，求二叉树中第k层的结点个数。一个更简单的算法是：
+
+```c
+int countLevelK(Node *root, int k) {
+  if (root == NULL || k < 1) {
+    return 0;
+  }
+  if (k == 1) {
+    return 1;
+  }
+  return countLevelK(root->left, k - 1) + countLevelK(root->right, k - 1);
+}
+```
+
+7.5.4节提到，“因此层次遍历算法采用一个环形队列qu来实现”。这可能对读者造成误解：*难道不能用普通队列？* 实际上，树的层次遍历就是一个广度优先搜索（**BFS**）过程，重点是FIFO，使用任意队列都可以；教材中的环形队列只是一个具体的实现。比如仓库代码`queue.h`是个通用的队列实现：
+
+```c
+void level_order(TreeNode *root) {
+  if (root == NULL) {
+    return;
+  }
+
+  Queue *q = queue_init();
+  queue_enqueue(q, root);
+
+  void *value = NULL;
+  while (queue_deq(q, &value)) {
+    TreeNode *node = (TreeNode *)value;
+    printf("%c ", node->data);
+
+    if (node->left != NULL) {
+      queue_enqueue(q, node->left);
+    }
+    if (node->right != NULL) {
+      queue_enqueue(q, node->right);
+    }
+  }
+
+  queue_destroy(q);
+}
+```
+
+特别地，之前的数据结构中，由于C语言的限制，我们一般必须限制其元素的类型。其他编程语言中（如Rust/C++/Java）提供泛型机制，可以更灵活地处理不同类型的元素，而在C语言中可以使用`void *`实现类似的功能。因此，这里使用的队列（底层用链表实现）能够存储任意类型的元素，包括树结点的指针。
+
+```c
+struct QueueNode {
+  void *data;
+  struct QueueNode *next;
+};
+```
+
