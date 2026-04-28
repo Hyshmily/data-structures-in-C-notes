@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>由遍历序列唯一确定二叉树</title>
+  <style>
+    :root {
+      --bg: #f3f0ea;
+      --panel: #fffdf8;
+      --ink: #1f2528;
+      --muted: #687276;
+      --line: #d9d1c3;
+      --accent: #26736d;
+      --accent-2: #c85d36;
+      --left: #3d76b8;
+      --right: #b45f9d;
+      --root: #f0b429;
+      --shadow: 0 12px 30px rgba(60, 48, 30, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Georgia, "Noto Serif SC", "Songti SC", serif;
+      background:
+        linear-gradient(135deg, rgba(38, 115, 109, 0.09), transparent 36%),
+        linear-gradient(315deg, rgba(200, 93, 54, 0.10), transparent 34%),
+        var(--bg);
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 740px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .rule {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.72);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 360px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 370px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      padding: 18px;
+    }
+
+    .mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .mode button,
+    .buttons button {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8f2e8;
+      color: var(--ink);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    .mode button.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 16px;
+      letter-spacing: 0;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(38, 115, 109, 0.15);
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .buttons button.primary {
+      border-color: var(--accent-2);
+      background: var(--accent-2);
+      color: white;
+    }
+
+    .speed-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .error {
+      min-height: 21px;
+      margin-top: 12px;
+      color: #a13f28;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.root { background: var(--root); }
+    .dot.left { background: var(--left); }
+    .dot.right { background: var(--right); }
+    .dot.done { background: var(--accent); }
+
+    .stage {
+      display: grid;
+      grid-template-rows: auto minmax(360px, 1fr) auto;
+      min-height: 650px;
+      overflow: hidden;
+    }
+
+    .explain {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fbf5ec;
+    }
+
+    .step-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .step-title span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .formula {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .sequence-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .seq-row {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .seq-name {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 34px;
+      align-items: center;
+    }
+
+    .chip {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 700;
+      transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+    }
+
+    .chip.dim {
+      opacity: 0.25;
+    }
+
+    .chip.root {
+      background: var(--root);
+      color: #332000;
+      transform: translateY(-3px);
+      border-color: #d39811;
+    }
+
+    .chip.left {
+      background: rgba(61, 118, 184, 0.16);
+      border-color: rgba(61, 118, 184, 0.55);
+    }
+
+    .chip.right {
+      background: rgba(180, 95, 157, 0.16);
+      border-color: rgba(180, 95, 157, 0.55);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      background:
+        linear-gradient(rgba(31, 37, 40, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31, 37, 40, 0.045) 1px, transparent 1px),
+        #fffdf8;
+      background-size: 36px 36px;
+      min-height: 360px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      min-height: 360px;
+      display: block;
+    }
+
+    .edge {
+      stroke: rgba(31, 37, 40, 0.34);
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .node circle {
+      fill: white;
+      stroke: var(--accent);
+      stroke-width: 2.5;
+      filter: drop-shadow(0 4px 4px rgba(35, 30, 22, 0.15));
+    }
+
+    .node text {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 18px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      fill: var(--ink);
+    }
+
+    .node.new circle {
+      fill: var(--root);
+      stroke: #c08300;
+      animation: pop 0.45s ease;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.45); }
+      70% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    .timeline {
+      border-top: 1px solid var(--line);
+      padding: 12px 16px 14px;
+      background: #fbf5ec;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .step-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      margin-right: 6px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .step-pill.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .step-pill.done {
+      background: rgba(38, 115, 109, 0.13);
+      border-color: rgba(38, 115, 109, 0.38);
+    }
+
+    @media (max-width: 900px) {
+      header,
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .rule {
+        max-width: none;
+      }
+
+      .stage {
+        min-height: 620px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      main {
+        width: min(100% - 20px, 1180px);
+        padding-top: 16px;
+      }
+
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .mode {
+        grid-template-columns: 1fr;
+      }
+
+      .seq-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>由遍历序列确定二叉树</h1>
+        <p class="subtitle">输入字母序列，动画会逐步展示：先从先序第一个或后序最后一个拿到根，再去中序序列中定位根，根左边就是左子树，根右边就是右子树。</p>
+      </div>
+      <div class="rule">前提：结点值不重复。中序 + 先序，或中序 + 后序，都能唯一确定一棵二叉树。</div>
+    </header>
+
+    <section class="app">
+      <aside class="panel controls">
+        <div class="mode" aria-label="选择重建模式">
+          <button id="modePre" class="active" type="button">中序 + 先序</button>
+          <button id="modePost" type="button">中序 + 后序</button>
+        </div>
+
+        <label for="inorderInput">中序 Inorder</label>
+        <input id="inorderInput" type="text" value="DBEAFCG" spellcheck="false">
+
+        <label id="otherLabel" for="otherInput">先序 Preorder</label>
+        <input id="otherInput" type="text" value="ABDECFG" spellcheck="false">
+
+        <div class="buttons">
+          <button id="buildBtn" class="primary" type="button">生成动画</button>
+          <button id="prevBtn" type="button">上一步</button>
+          <button id="nextBtn" type="button">下一步</button>
+        </div>
+
+        <div class="buttons">
+          <button id="playBtn" type="button">播放</button>
+          <button id="resetBtn" type="button">重置</button>
+          <button id="exampleBtn" type="button">换示例</button>
+        </div>
+
+        <div class="speed-row">
+          <span>慢</span>
+          <input id="speedInput" type="range" min="450" max="1600" step="50" value="950">
+          <span>快</span>
+        </div>
+
+        <div id="error" class="error"></div>
+
+        <div class="legend">
+          <span><i class="dot root"></i>当前根</span>
+          <span><i class="dot left"></i>左子树范围</span>
+          <span><i class="dot right"></i>右子树范围</span>
+          <span><i class="dot done"></i>已完成步骤</span>
+        </div>
+      </aside>
+
+      <section class="panel stage">
+        <div class="explain">
+          <div class="step-title">
+            <strong id="stepTitle">等待生成</strong>
+            <span id="stepCount">0 / 0</span>
+          </div>
+          <div id="formula" class="formula">输入遍历序列后点击“生成动画”。</div>
+          <div class="sequence-box">
+            <div class="seq-row">
+              <div class="seq-name">中序</div>
+              <div id="inorderChips" class="chips"></div>
+            </div>
+            <div class="seq-row">
+              <div id="otherName" class="seq-name">先序</div>
+              <div id="otherChips" class="chips"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <svg id="treeSvg" viewBox="0 0 900 420" role="img" aria-label="重建出来的二叉树"></svg>
+        </div>
+
+        <div id="timeline" class="timeline"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const examples = [
+      { mode: "pre", inorder: "DBEAFCG", other: "ABDECFG" },
+      { mode: "post", inorder: "DBEAFCG", other: "DEBFGCA" },
+      { mode: "pre", inorder: "HDIBJEAFCG", other: "ABDHIEJCFG" },
+      { mode: "post", inorder: "HDIBJEAFCG", other: "HIDJEBFGCA" }
+    ];
+
+    const els = {
+      modePre: document.getElementById("modePre"),
+      modePost: document.getElementById("modePost"),
+      inorderInput: document.getElementById("inorderInput"),
+      otherInput: document.getElementById("otherInput"),
+      otherLabel: document.getElementById("otherLabel"),
+      otherName: document.getElementById("otherName"),
+      buildBtn: document.getElementById("buildBtn"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      playBtn: document.getElementById("playBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      exampleBtn: document.getElementById("exampleBtn"),
+      speedInput: document.getElementById("speedInput"),
+      error: document.getElementById("error"),
+      stepTitle: document.getElementById("stepTitle"),
+      stepCount: document.getElementById("stepCount"),
+      formula: document.getElementById("formula"),
+      inorderChips: document.getElementById("inorderChips"),
+      otherChips: document.getElementById("otherChips"),
+      treeSvg: document.getElementById("treeSvg"),
+      timeline: document.getElementById("timeline")
+    };
+
+    let state = {
+      mode: "pre",
+      inorder: [],
+      other: [],
+      root: null,
+      steps: [],
+      current: 0,
+      timer: null,
+      exampleIndex: 0
+    };
+
+    class TreeNode {
+      constructor(value, id) {
+        this.value = value;
+        this.id = id;
+        this.left = null;
+        this.right = null;
+        this.x = 0;
+        this.y = 0;
+      }
+    }
+
+    function normalizeSequence(text) {
+      const sequence = text.replace(/[\s,，;；|]+/g, "").toUpperCase();
+      if (!sequence) {
+        throw new Error("序列不能为空。");
+      }
+      if (!/^[A-Z]+$/.test(sequence)) {
+        throw new Error("当前演示只接受英文字母结点，例如 ABDECFG。");
+      }
+      const arr = Array.from(sequence);
+      if (new Set(arr).size !== arr.length) {
+        throw new Error("结点值不能重复，否则无法用中序切分出唯一子树。");
+      }
+      return arr;
+    }
+
+    function sameSet(a, b) {
+      if (a.length !== b.length) return false;
+      const set = new Set(a);
+      return b.every((item) => set.has(item));
+    }
+
+    function makeEmptyRange(start, end) {
+      return start <= end ? [start, end] : null;
+    }
+
+    function buildTree(mode, inorder, other) {
+      const steps = [];
+      const indexInInorder = new Map(inorder.map((value, index) => [value, index]));
+      let nextId = 1;
+
+      function buildFromPre(preStart, preEnd, inStart, inEnd, depth, side) {
+        if (preStart > preEnd) return null;
+
+        const rootValue = other[preStart];
+        const rootIndex = indexInInorder.get(rootValue);
+        if (rootIndex === undefined || rootIndex < inStart || rootIndex > inEnd) {
+          throw new Error(`无法在当前中序片段中找到根结点 ${rootValue}。`);
+        }
+
+        const leftCount = rootIndex - inStart;
+        const rightCount = inEnd - rootIndex;
+        const node = new TreeNode(rootValue, nextId++);
+
+        steps.push({
+          node,
+          value: rootValue,
+          depth,
+          side,
+          inRange: [inStart, inEnd],
+          otherRange: [preStart, preEnd],
+          rootInIndex: rootIndex,
+          rootOtherIndex: preStart,
+          leftInRange: makeEmptyRange(inStart, rootIndex - 1),
+          rightInRange: makeEmptyRange(rootIndex + 1, inEnd),
+          leftOtherRange: makeEmptyRange(preStart + 1, preStart + leftCount),
+          rightOtherRange: makeEmptyRange(preStart + leftCount + 1, preEnd)
+        });
+
+        node.left = buildFromPre(preStart + 1, preStart + leftCount, inStart, rootIndex - 1, depth + 1, "left");
+        node.right = buildFromPre(preStart + leftCount + 1, preEnd, rootIndex + 1, inEnd, depth + 1, "right");
+        return node;
+      }
+
+      function buildFromPost(postStart, postEnd, inStart, inEnd, depth, side) {
+        if (postStart > postEnd) return null;
+
+        const rootValue = other[postEnd];
+        const rootIndex = indexInInorder.get(rootValue);
+        if (rootIndex === undefined || rootIndex < inStart || rootIndex > inEnd) {
+          throw new Error(`无法在当前中序片段中找到根结点 ${rootValue}。`);
+        }
+
+        const leftCount = rootIndex - inStart;
+        const rightCount = inEnd - rootIndex;
+        const node = new TreeNode(rootValue, nextId++);
+
+        steps.push({
+          node,
+          value: rootValue,
+          depth,
+          side,
+          inRange: [inStart, inEnd],
+          otherRange: [postStart, postEnd],
+          rootInIndex: rootIndex,
+          rootOtherIndex: postEnd,
+          leftInRange: makeEmptyRange(inStart, rootIndex - 1),
+          rightInRange: makeEmptyRange(rootIndex + 1, inEnd),
+          leftOtherRange: makeEmptyRange(postStart, postStart + leftCount - 1),
+          rightOtherRange: makeEmptyRange(postStart + leftCount, postEnd - 1)
+        });
+
+        node.left = buildFromPost(postStart, postStart + leftCount - 1, inStart, rootIndex - 1, depth + 1, "left");
+        node.right = buildFromPost(postStart + leftCount, postEnd - 1, rootIndex + 1, inEnd, depth + 1, "right");
+        return node;
+      }
+
+      const root = mode === "pre"
+        ? buildFromPre(0, other.length - 1, 0, inorder.length - 1, 0, "root")
+        : buildFromPost(0, other.length - 1, 0, inorder.length - 1, 0, "root");
+
+      return { root, steps };
+    }
+
+    function setMode(mode) {
+      stopPlay();
+      state.mode = mode;
+      els.modePre.classList.toggle("active", mode === "pre");
+      els.modePost.classList.toggle("active", mode === "post");
+      els.otherLabel.textContent = mode === "pre" ? "先序 Preorder" : "后序 Postorder";
+      els.otherName.textContent = mode === "pre" ? "先序" : "后序";
+      if (mode === "pre" && els.otherInput.value === "DEBFGCA") {
+        els.otherInput.value = "ABDECFG";
+      }
+      if (mode === "post" && els.otherInput.value === "ABDECFG") {
+        els.otherInput.value = "DEBFGCA";
+      }
+    }
+
+    function rangeContains(range, index) {
+      return range && index >= range[0] && index <= range[1];
+    }
+
+    function chipClass(index, step, isInorder) {
+      if (!step) return "";
+      const rootIndex = isInorder ? step.rootInIndex : step.rootOtherIndex;
+      if (index === rootIndex) return "root";
+      if (rangeContains(isInorder ? step.leftInRange : step.leftOtherRange, index)) return "left";
+      if (rangeContains(isInorder ? step.rightInRange : step.rightOtherRange, index)) return "right";
+      if (!rangeContains(isInorder ? step.inRange : step.otherRange, index)) return "dim";
+      return "";
+    }
+
+    function renderChips(container, arr, step, isInorder) {
+      container.innerHTML = "";
+      arr.forEach((value, index) => {
+        const chip = document.createElement("span");
+        chip.className = `chip ${chipClass(index, step, isInorder)}`;
+        chip.textContent = value;
+        container.appendChild(chip);
+      });
+    }
+
+    function assignLayout(root) {
+      const ordered = [];
+      function walk(node, depth) {
+        if (!node) return;
+        walk(node.left, depth + 1);
+        ordered.push({ node, depth });
+        walk(node.right, depth + 1);
+      }
+      walk(root, 0);
+
+      const gapX = Math.max(72, 760 / Math.max(1, ordered.length));
+      ordered.forEach((item, index) => {
+        item.node.x = 70 + index * gapX;
+        item.node.y = 62 + item.depth * 82;
+      });
+    }
+
+    function visibleNodes(root, stepIndex) {
+      const maxId = stepIndex >= 0 ? state.steps[stepIndex].node.id : 0;
+      const nodes = [];
+      const edges = [];
+      function walk(node) {
+        if (!node || node.id > maxId) return;
+        nodes.push(node);
+        if (node.left && node.left.id <= maxId) edges.push([node, node.left]);
+        if (node.right && node.right.id <= maxId) edges.push([node, node.right]);
+        walk(node.left);
+        walk(node.right);
+      }
+      walk(root);
+      return { nodes, edges };
+    }
+
+    function renderTree() {
+      els.treeSvg.innerHTML = "";
+      if (!state.root || state.current < 0) return;
+
+      assignLayout(state.root);
+      const { nodes, edges } = visibleNodes(state.root, state.current);
+      const currentNodeId = state.steps[state.current].node.id;
+      const maxY = Math.max(420, ...nodes.map((node) => node.y + 70));
+      els.treeSvg.setAttribute("viewBox", `0 0 900 ${maxY}`);
+
+      edges.forEach(([from, to]) => {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("class", "edge");
+        line.setAttribute("x1", from.x);
+        line.setAttribute("y1", from.y + 22);
+        line.setAttribute("x2", to.x);
+        line.setAttribute("y2", to.y - 22);
+        els.treeSvg.appendChild(line);
+      });
+
+      nodes.forEach((node) => {
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.setAttribute("class", `node ${node.id === currentNodeId ? "new" : ""}`);
+        group.setAttribute("transform", `translate(${node.x}, ${node.y})`);
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("r", "24");
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.textContent = node.value;
+
+        group.appendChild(circle);
+        group.appendChild(text);
+        els.treeSvg.appendChild(group);
+      });
+    }
+
+    function renderTimeline() {
+      els.timeline.innerHTML = "";
+      state.steps.forEach((step, index) => {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = `step-pill ${index === state.current ? "active" : ""} ${index < state.current ? "done" : ""}`;
+        pill.textContent = step.value;
+        pill.title = `第 ${index + 1} 步：选择 ${step.value}`;
+        pill.addEventListener("click", () => {
+          stopPlay();
+          state.current = index;
+          render();
+        });
+        els.timeline.appendChild(pill);
+      });
+    }
+
+    function formatRange(arr, range) {
+      if (!range) return "空";
+      return arr.slice(range[0], range[1] + 1).join("");
+    }
+
+    function renderExplanation(step) {
+      if (!step) {
+        els.stepTitle.textContent = "等待生成";
+        els.stepCount.textContent = "0 / 0";
+        els.formula.textContent = "输入遍历序列后点击“生成动画”。";
+        return;
+      }
+
+      const source = state.mode === "pre" ? "先序第一个" : "后序最后一个";
+      const leftIn = formatRange(state.inorder, step.leftInRange);
+      const rightIn = formatRange(state.inorder, step.rightInRange);
+      const leftOther = formatRange(state.other, step.leftOtherRange);
+      const rightOther = formatRange(state.other, step.rightOtherRange);
+      els.stepTitle.textContent = `选择根结点 ${step.value}`;
+      els.stepCount.textContent = `${state.current + 1} / ${state.steps.length}`;
+      els.formula.textContent =
+        `${source}是 ${step.value}。在中序中找到 ${step.value} 后，左边 ${leftIn} 是左子树，右边 ${rightIn} 是右子树；对应的${state.mode === "pre" ? "先序" : "后序"}片段分别是 ${leftOther} 和 ${rightOther}。`;
+    }
+
+    function render() {
+      const step = state.steps[state.current] || null;
+      renderExplanation(step);
+      renderChips(els.inorderChips, state.inorder, step, true);
+      renderChips(els.otherChips, state.other, step, false);
+      renderTree();
+      renderTimeline();
+      els.prevBtn.disabled = state.current <= 0;
+      els.nextBtn.disabled = state.current >= state.steps.length - 1;
+    }
+
+    function build() {
+      stopPlay();
+      els.error.textContent = "";
+      try {
+        const inorder = normalizeSequence(els.inorderInput.value);
+        const other = normalizeSequence(els.otherInput.value);
+        if (!sameSet(inorder, other)) {
+          throw new Error("两个序列必须包含完全相同的一组结点。");
+        }
+
+        const { root, steps } = buildTree(state.mode, inorder, other);
+        state.inorder = inorder;
+        state.other = other;
+        state.root = root;
+        state.steps = steps;
+        state.current = 0;
+        render();
+      } catch (error) {
+        state.root = null;
+        state.steps = [];
+        state.current = 0;
+        els.error.textContent = error.message;
+        render();
+      }
+    }
+
+    function stopPlay() {
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+      els.playBtn.textContent = "播放";
+    }
+
+    function play() {
+      if (!state.steps.length) build();
+      if (!state.steps.length) return;
+
+      if (state.timer) {
+        stopPlay();
+        return;
+      }
+
+      if (state.current >= state.steps.length - 1) {
+        state.current = 0;
+        render();
+      }
+
+      els.playBtn.textContent = "暂停";
+      const delay = Number(els.speedInput.max) + Number(els.speedInput.min) - Number(els.speedInput.value);
+      state.timer = setInterval(() => {
+        if (state.current >= state.steps.length - 1) {
+          stopPlay();
+          return;
+        }
+        state.current += 1;
+        render();
+      }, delay);
+    }
+
+    function loadExample() {
+      state.exampleIndex = (state.exampleIndex + 1) % examples.length;
+      const example = examples[state.exampleIndex];
+      setMode(example.mode);
+      els.inorderInput.value = example.inorder;
+      els.otherInput.value = example.other;
+      build();
+    }
+
+    els.modePre.addEventListener("click", () => setMode("pre"));
+    els.modePost.addEventListener("click", () => setMode("post"));
+    els.buildBtn.addEventListener("click", build);
+    els.prevBtn.addEventListener("click", () => {
+      stopPlay();
+      state.current = Math.max(0, state.current - 1);
+      render();
+    });
+    els.nextBtn.addEventListener("click", () => {
+      stopPlay();
+      state.current = Math.min(state.steps.length - 1, state.current + 1);
+      render();
+    });
+    els.playBtn.addEventListener("click", play);
+    els.resetBtn.addEventListener("click", () => {
+      stopPlay();
+      state.current = 0;
+      render();
+    });
+    els.exampleBtn.addEventListener("click", loadExample);
+    els.speedInput.addEventListener("input", () => {
+      if (state.timer) {
+        stopPlay();
+        play();
+      }
+    });
+
+    build();
+  </script>
+</body>
+</html>

@@ -151,7 +151,7 @@
     </div>
 
     <div class="controls">
-        <button id="preBtn" onclick="startTraversal('preorder')">前序遍历 (Preorder)</button>
+        <button id="preBtn" onclick="startTraversal('preorder')">先序遍历 (Preorder)</button>
         <button id="inBtn" onclick="startTraversal('inorder')">中序遍历 (Inorder)</button>
         <button id="postBtn" onclick="startTraversal('postorder')">后序遍历 (Postorder)</button>
     </div>
@@ -358,7 +358,7 @@
         let title = "";
         if (type === 'preorder') {
             sequence = getPreorder(rootNode);
-            title = "前序遍历: ";
+            title = "先序遍历: ";
         } else if (type === 'inorder') {
             sequence = getInorder(rootNode);
             title = "中序遍历: ";
